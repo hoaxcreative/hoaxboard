@@ -215,6 +215,35 @@ button.card:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
 .login h1{font-size:clamp(40px,10vw,84px);margin:18px 0 8px}
 .login p{color:var(--muted);max-width:360px;margin:0 auto 22px}
 
+/* Abertura animada */
+.intro{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;text-align:center;padding:24px;overflow:hidden}
+.intro .glow{position:absolute;width:130vmax;height:130vmax;left:50%;top:46%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(234,88,20,.24),rgba(234,88,20,.06) 30%,transparent 58%);animation:hbGlow 2.2s ease-out both,hbPulso 7s 2.2s ease-in-out infinite;pointer-events:none}
+.intro .in{position:relative}
+.logo-anim{width:min(330px,70vw);overflow:visible;display:block;margin:0 auto}
+.logo-anim path{fill:#EA5814;transform-box:fill-box;transform-origin:50% 100%;animation:hbLetra .95s cubic-bezier(.2,1.5,.4,1) both;animation-delay:calc(.2s + var(--i)*.12s)}
+.intro .risco{height:2px;background:var(--accent);width:min(330px,70vw);margin:18px auto 0;transform:scaleX(0);animation:hbRisco .9s .75s cubic-bezier(.6,0,.2,1) forwards;border-radius:2px}
+.intro .board{display:flex;justify-content:center;font-size:clamp(46px,13vw,104px);margin:14px 0 12px}
+.intro .board .m{display:inline-block;overflow:hidden;padding:0 .01em .04em}
+.intro .board .m span{display:inline-block;animation:hbSobe .85s cubic-bezier(.2,.9,.2,1) both;animation-delay:calc(1s + var(--i)*.07s)}
+.intro .sub{color:var(--muted);max-width:340px;margin:0 auto;font-size:15px;line-height:1.45;animation:hbFade .8s 1.45s both}
+.intro .dia{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:16px 0 26px;animation:hbFade .8s 1.6s both}
+.intro .cta{min-height:56px;display:grid;justify-items:center;gap:10px;animation:hbFade .8s 1.8s both}
+.intro .cta .btn{font-size:17px;padding:14px 38px}
+.intro .cta p{color:var(--muted);font-size:14px;max-width:320px;margin:0}
+.intro .pontos span{display:inline-block;width:7px;height:7px;margin:0 3px;border-radius:50%;background:var(--muted);animation:hbPonto 1s infinite ease-in-out}
+.intro .pontos span:nth-child(2){animation-delay:.15s}.intro .pontos span:nth-child(3){animation-delay:.3s}
+.intro.sai{animation:hbSai .75s cubic-bezier(.7,0,.3,1) forwards;pointer-events:none}
+#app.entra{animation:hbEntra .8s .15s cubic-bezier(.2,.8,.2,1) both}
+@keyframes hbGlow{from{opacity:0;transform:translate(-50%,-50%) scale(.35)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes hbPulso{50%{opacity:.7;transform:translate(-50%,-50%) scale(1.07)}}
+@keyframes hbLetra{from{opacity:0;transform:translateY(70%) scaleY(.3) rotate(-8deg)}60%{opacity:1}to{opacity:1;transform:none}}
+@keyframes hbRisco{to{transform:scaleX(1)}}
+@keyframes hbSobe{from{transform:translateY(112%)}to{transform:none}}
+@keyframes hbFade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes hbPonto{0%,80%,100%{opacity:.25;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+@keyframes hbSai{to{opacity:0;transform:scale(1.08);filter:blur(8px)}}
+@keyframes hbEntra{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.intro *,.intro,#app.entra{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom));z-index:60;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
 #toast.on{opacity:1}
 .hidden{display:none!important}
@@ -222,6 +251,7 @@ button.card:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
 </head>
 <body>
 <div id="app"></div>
+<div id="intro"></div>
 <div id="sheet"></div>
 <div id="toast"></div>
 <script>
@@ -596,9 +626,8 @@ let agendado=false;
 function agendar(){if(agendado)return;agendado=true;requestAnimationFrame(()=>{agendado=false;render();atualizarFolha()})}
 function render(){
   const app=$('#app');
-  if(!ui.pronto){app.innerHTML=`<div class="login"><img src="logo.svg" alt="hoax"></div>`;return}
-  if(ui.precisaLogin){app.innerHTML=`<div class="login"><div><img src="logo.svg" alt="hoax"><h1 class="disp">Board</h1><p>A central da Hoax: demandas, clientes e financeiro.</p><button class="btn pri" data-a="entrar">Entrar com Google</button></div></div>`;return}
-  if(ui.semAcesso){app.innerHTML=`<div class="login"><div><img src="logo.svg" alt="hoax"><h1 class="disp">Sem acesso</h1><p>A conta ${esc(ui.semAcesso)} ainda não está na equipe. Peça para a administradora te adicionar em Mais › Equipe com esse e-mail.</p><button class="btn" data-a="sair">Entrar com outra conta</button></div></div>`;return}
+  atualizarIntro();
+  if(!ui.pronto||ui.precisaLogin||ui.semAcesso){app.innerHTML='';return}
   const tabs=TABS.filter(([k])=>k!=='financeiro'||isAdmin()||pessoal());
   if(!tabs.find(t=>t[0]===ui.tab))ui.tab='inicio';
   const tela={inicio:telaInicio,demandas:telaDemandas,clientes:telaClientes,financeiro:telaFinanceiro,mais:telaMais}[ui.tab]();
@@ -614,6 +643,32 @@ function render(){
   ${['inicio','demandas','clientes','financeiro'].includes(ui.tab)?`<button class="fab" data-a="fab" aria-label="Adicionar" title="Adicionar (atalho: N)">+</button>`:''}`;
   document.querySelectorAll('.board').forEach((b,i)=>b.scrollLeft=scroll[i]||0);const nv=document.querySelector('nav.tabs');if(nv){nv.scrollLeft=navX;const on=nv.querySelector('.on');if(on&&(on.offsetLeft<nv.scrollLeft||on.offsetLeft+on.offsetWidth>nv.scrollLeft+nv.clientWidth))on.scrollIntoView({inline:'center',block:'nearest'})}
   if(fid){const el=document.getElementById(fid);if(el&&el!==document.activeElement){el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}}
+}
+
+/* ================= Abertura ================= */
+const LOGO_ANIM=`<svg class="logo-anim" viewBox="40 400 1000 310" role="img" aria-label="hoax"><path style="--i:0" d="M65.05,684.5l53.13-97.41v-100.22l-53.94-51.92v-2.42l61.58-44.28,2.41,2.01.4,99.42v80.9c14.89-64.4,54.34-90.16,85.74-90.16,33.41,0,55.14,28.58,55.14,75.27v30.99l53.13,97.81v2.41h-116.73v-2.41l53.13-97v-4.43c0-14.09-21.33-34.62-58.37-34.62s-63.19,18.92-72.05,29.79v8.45l53.13,97.81v2.41h-116.73v-2.41Z"/><path style="--i:1" d="M323.45,585.88c0-61.18,43.07-105.46,103.04-105.46s101.83,44.68,101.83,105.46-41.86,105.86-101.83,105.86-103.04-45.08-103.04-105.86ZM426.09,623.72c62.39,0,91.37-16.9,91.37-37.84s-28.98-37.43-91.37-37.43-91.77,16.91-91.77,37.43,28.98,37.84,91.77,37.84Z"/><path style="--i:2" d="M546.44,634.19c0-46.69,43.07-60.38,86.14-60.38,28.58-.4,58.37,4.03,79.3,9.26v-2.01c0-19.32-27.37-32.61-66.82-32.61-18.11,0-45.08,4.43-68.42,15.7h-2.01l-12.48-63.6c38.64-14.89,57.96-19.72,90.56-19.72,54.74,0,70.03,41.05,70.03,85.33v23.75l50.72,75.27v2.41l-61.98,24.15-2.01-2.01,2.82-78.89c-12.88,37.03-42.67,80.9-96.6,80.9-37.84,0-69.23-22.14-69.23-57.56ZM643.85,623.72c39.85,0,65.61-16.9,68.02-21.73v-10.47c-30.99-7.24-53.94-7.24-78.49-7.24-29.79,0-53.13,4.43-53.13,17.71,0,14.89,23.75,21.73,63.6,21.73Z"/><path style="--i:3" d="M778.28,684.1l88.55-83.32,25.36-27.77-113.51-109.48-.4-2.82h96.6l22.14,108.68,20.53-24.96-16.5-80.9v-2.82h113.51l.4,2.82-86.94,83.32-25.76,28.18,113.51,109.08v2.82h-95.8l-22.14-108.68-20.53,24.96,16.1,80.9v2.82h-114.71l-.4-2.82Z"/></svg>`;
+function montarIntro(){
+  ui.intro=true;document.body.style.overflow='hidden';
+  const dia=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  $('#intro').innerHTML=`<div class="intro"><div class="glow"></div><div class="in">${LOGO_ANIM}<div class="risco"></div>
+    <h1 class="board disp" aria-label="Board">${[...'BOARD'].map((l,i)=>`<span class="m"><span style="--i:${i}">${l}</span></span>`).join('')}</h1>
+    <p class="sub">A central da Hoax: demandas, clientes e financeiro.</p><p class="dia">${esc(dia)}</p><div class="cta" id="introCta"></div></div></div>`;
+  ui.ctaEstado=null;atualizarIntro();
+}
+function atualizarIntro(){
+  if(!ui.intro)return;const el=$('#introCta');if(!el)return;
+  const estado=!ui.pronto?'carregando':ui.precisaLogin?'login':ui.semAcesso?'sem':'entrar';
+  if(estado==='entrar'&&ui.entrouAgora){ui.entrouAgora=false;return sairIntro()}
+  if(estado===ui.ctaEstado)return;ui.ctaEstado=estado;
+  el.innerHTML=estado==='carregando'?`<div class="pontos" aria-label="Carregando"><span></span><span></span><span></span></div>`
+    :estado==='login'?`<button class="btn pri" data-a="entrar">Entrar com Google</button>`
+    :estado==='sem'?`<p>A conta ${esc(ui.semAcesso)} ainda não está na equipe. Peça para te adicionarem em Mais › Equipe.</p><button class="btn" data-a="sair">Entrar com outra conta</button>`
+    :`<button class="btn pri" data-a="entrarApp">Entrar</button>`;
+}
+function sairIntro(){
+  const box=$('#intro .intro');if(!box||!ui.intro)return;ui.intro=false;
+  box.classList.add('sai');const app=$('#app');app.classList.remove('entra');void app.offsetWidth;app.classList.add('entra');
+  setTimeout(()=>{$('#intro').innerHTML='';document.body.style.overflow='';app.classList.remove('entra')},800);
 }
 
 /* ================= Folhas (modais) ================= */
@@ -872,7 +927,8 @@ const A={
   tema:()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==='light'?'dark':'light';ls.set('hb-tema',r.dataset.theme);render()},
   backup:()=>{const j={exportado:new Date().toISOString()};j.hoax=E.hoax;j.membros=D.membros;j.listas=D.listas;j.minhaParte=D.minhas;j.pessoal=E.pessoal;
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(j,null,1)],{type:'application/json'}));a.download=`hoax-board-${hoje()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)},
-  entrar:()=>entrarGoogle(),
+  entrar:()=>{ui.entrouAgora=true;entrarGoogle()},
+  entrarApp:()=>sairIntro(),
   sair:()=>{if(fb.auth)fb.auth.signOut()}
 };
 
@@ -884,10 +940,11 @@ document.addEventListener('click',e=>{
   f(t.dataset,t,e);
 });
 document.addEventListener('keydown',e=>{
+  if(ui.intro&&e.key==='Enter'&&ui.ctaEstado==='entrar'){e.preventDefault();sairIntro();return}
   if(e.key==='Escape'&&ui.sheet)fecharFolha();
   // Atalhos no computador: N cria, / busca, 1 a 5 trocam de aba
   const digitando=/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||e.target.isContentEditable;
-  if(!digitando&&!ui.sheet&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&ui.eu){
+  if(!digitando&&!ui.sheet&&!ui.intro&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&ui.eu){
     if(e.key==='n'||e.key==='N'){e.preventDefault();A.fab()}
     else if(e.key==='/'){const b=$('#busca')||$('#cliBusca');if(b){e.preventDefault();b.focus()}}
     else if(/^[1-5]$/.test(e.key)){const t=[...document.querySelectorAll('nav.tabs button')][+e.key-1];if(t){e.preventDefault();t.click()}}
@@ -940,7 +997,7 @@ async function conectarFirebase(){
   fb.auth.getRedirectResult().catch(e=>toast('Não foi possível entrar ('+e.code+').'));
   fb.auth.onAuthStateChanged(async u=>{
     pararDeOuvir();ui.semAcesso=null;
-    if(!u){ui.eu=null;ui.precisaLogin=true;ui.pronto=true;for(const k of ['hoax','pessoal'])for(const c of ESPACOS)E[k][c]=[];D.membros=[];D.minhas={};render();return}
+    if(!u){if(!ui.intro)montarIntro();ui.eu=null;ui.precisaLogin=true;ui.pronto=true;for(const k of ['hoax','pessoal'])for(const c of ESPACOS)E[k][c]=[];D.membros=[];D.minhas={};render();return}
     ui.precisaLogin=false;
     const email=(u.email||'').toLowerCase();const dono=email===String(window.HOAX_DONO||'').toLowerCase();
     const ref=fs.collection('membros').doc(email);let m=null;
@@ -973,6 +1030,7 @@ function entrarGoogle(){
 
 /* ================= Início ================= */
 document.documentElement.dataset.theme=ls.get('hb-tema','dark');
+montarIntro();
 render();
 conectarFirebase();
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
