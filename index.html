@@ -145,7 +145,10 @@ button.card:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
 .cal .d.hj{border-color:var(--accent)}
 .cal .d .n{font-size:12px;font-weight:700}
 .pt{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;vertical-align:0}
-.card.cor,.kc.cor{border-left:4px solid var(--c)}
+.card.cor,.kc.cor{border-left:5px solid var(--c);background:color-mix(in srgb,var(--c) 9%,var(--surface))}
+.kc.cor{background:color-mix(in srgb,var(--c) 9%,var(--bg))}
+.chip.cli{background:color-mix(in srgb,var(--c) 30%,transparent);color:var(--ink);font-weight:700}
+.chip.cli::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c)}
 .cores{display:flex;flex-wrap:wrap;gap:8px}
 .cores label{cursor:pointer}
 .cores input{position:absolute;opacity:0;pointer-events:none}
@@ -328,7 +331,12 @@ async function apagarArquivo(id){
 const isAdmin=()=>ui.eu?.papel==='admin';
 const cliente=id=>D.clientes.find(c=>c.id===id);
 const nomeCliente=id=>cliente(id)?.nome||'';
-const corCliente=id=>cliente(id)?.cor||'';
+// Cor do cliente: a escolhida, ou uma automática fixa (pela ordem de cadastro) para quem ainda não tem
+function corCliente(id){const c=cliente(id);if(!c)return '';if(c.cor)return c.cor;
+  const sem=D.clientes.filter(x=>!x.cor).sort((a,b)=>(a.criado||0)-(b.criado||0)||a.nome.localeCompare(b.nome));
+  const livres=CORES.map(([x])=>x).filter(x=>!D.clientes.some(k=>k.cor===x));const pal=livres.length?livres:CORES.map(([x])=>x);
+  return pal[sem.findIndex(x=>x.id===id)%pal.length]}
+const chipCliente=id=>{const n=nomeCliente(id);if(!n)return '';const c=corCliente(id);return `<span class="chip cli" style="--c:${esc(c)}">${esc(n)}</span>`};
 // Cor para um cliente novo: a primeira da paleta que ainda ninguém usa
 function proxCor(){const usadas=D.clientes.map(c=>c.cor);return (CORES.find(([c])=>!usadas.includes(c))||CORES[D.clientes.length%CORES.length])[0]}
 const pontoCor=c=>c?`<i class="pt" style="background:${esc(c)}"></i>`:'';
@@ -411,7 +419,7 @@ function cartaoDemanda(d){
   const cli=nomeCliente(d.cliente),cor=corCliente(d.cliente);
   return `<button class="card ${cor?'cor':''}" ${cor?`style="--c:${esc(cor)}"`:''} data-a="verDemanda" data-id="${d.id}">
     <div class="row"><div class="grow"><div class="t">${esc(d.titulo||'Sem título')}</div>
-    <div class="sub">${cli?`<span>${esc(cli)}</span>`:''}${chipPrazo(d)}${chipStatus(d.status)}${chipPrio(d.prioridade)}</div></div>${avatares(d.resp)}</div></button>`;
+    <div class="sub">${chipCliente(d.cliente)}${chipPrazo(d)}${chipStatus(d.status)}${chipPrio(d.prioridade)}</div></div>${avatares(d.resp)}</div></button>`;
 }
 const vazio=t=>`<div class="empty">${t}</div>`;
 const opts=(arr,val,vazioTxt)=>(vazioTxt!=null?`<option value="">${esc(vazioTxt)}</option>`:'')+arr.map(o=>{const id=typeof o==='string'?o:o.id,n=typeof o==='string'?o:o.nome;return `<option value="${esc(id)}" ${id===val?'selected':''}>${esc(n)}</option>`}).join('');
@@ -467,7 +475,7 @@ function quadro(lista){
       const cor=corCliente(d.cliente);
       return `<div class="kc ${cor?'cor':''}" ${cor?`style="--c:${esc(cor)}"`:''} draggable="true" data-drag="${d.id}" data-a="verDemanda" data-id="${d.id}" role="button" tabindex="0">
         <div class="t">${esc(d.titulo||'Sem título')}</div>
-        <div class="sub">${cli?`<span>${esc(cli)}</span>`:''}${chipPrazo(d)}${chipPrio(d.prioridade)}</div>
+        <div class="sub">${chipCliente(d.cliente)}${chipPrazo(d)}${chipPrio(d.prioridade)}</div>
         <div class="foot">${avatares(d.resp)||'<span></span>'}${prox?`<button class="next" data-a="avancar" data-id="${d.id}">${esc(prox.nome)} →</button>`:''}</div></div>`}).join('')}
       ${nota}</section>`}).join('')}</div>`;
 }
@@ -505,7 +513,7 @@ function telaClientes(){
   <div class="list">${lista.length?lista.map(c=>{
     const ab=D.demandas.filter(d=>d.cliente===c.id&&aberta(d));const atr=ab.filter(atrasada).length;
     const tot=isAdmin()||pessoal()?totaisCliente(c.id):null;
-    return `<button class="card" data-a="verCliente" data-id="${c.id}"><div class="row"><div class="av" ${c.cor?`style="background:${esc(c.cor)};color:#0A0A0A;border-color:transparent"`:''}>${esc(iniciais(c.nome))}</div><div class="grow">
+    return `<button class="card" data-a="verCliente" data-id="${c.id}"><div class="row"><div class="av" style="background:${esc(corCliente(c.id))};color:#0A0A0A;border-color:transparent">${esc(iniciais(c.nome))}</div><div class="grow">
       <div class="t">${esc(c.nome)}</div><div class="sub">${chip(nomeDe(CLI_ST,c.status||'ativo'),'dot c-'+(c.status||'ativo'))}<span>${ab.length} ${ab.length===1?'demanda aberta':'demandas abertas'}</span>${atr?chip(atr+' atrasada'+(atr>1?'s':''),'late'):''}${(c.servicos||[]).map(s=>chip(s)).join('')}</div></div>
       ${tot&&tot.receber?`<div class="right"><div class="money">${brl(tot.receber)}</div><div class="muted" style="font-size:11px">a receber</div></div>`:''}</div></button>`}).join(''):vazio(D.clientes.length?'Nenhum cliente com esse nome.':'Cadastre o primeiro cliente no botão +.')}</div>`;
 }
@@ -629,7 +637,7 @@ function htmlDemanda(d){
   return `${cab(esc(d.titulo||'Sem título'))}
   <div class="bar"><select class="sel" data-ch="statusDem" data-id="${d.id}">${opts(STATUS,d.status)}</select>${chipPrazo(d)}${chipPrio(d.prioridade)}</div>
   <dl class="kv">
-    <dt>Cliente</dt><dd>${cli?`${pontoCor(cli.cor)} <a href="#" data-a="verCliente" data-id="${cli.id}">${esc(cli.nome)}</a>`:'<span class="muted">Sem cliente</span>'}</dd>
+    <dt>Cliente</dt><dd>${cli?`${pontoCor(corCliente(cli.id))} <a href="#" data-a="verCliente" data-id="${cli.id}">${esc(cli.nome)}</a>`:'<span class="muted">Sem cliente</span>'}</dd>
     <dt>Prazo</dt><dd>${d.prazo?dataLonga(d.prazo):'<span class="muted">Sem prazo</span>'}</dd>
     ${d.tipo?`<dt>Tipo</dt><dd>${esc(d.tipo)}</dd>`:''}
     <dt>Com</dt><dd>${(d.resp||[]).length?(d.resp.map(e=>esc(membro(e)?.nome||e)).join(', ')):'<span class="muted">Ninguém</span>'}</dd>
@@ -685,7 +693,7 @@ function htmlCliente(c){
     fin=`<h2 class="sec">Financeiro</h2><div class="grid stats" style="grid-template-columns:1fr 1fr"><div class="stat"><div class="v money pos">${brl(t.recebido)}</div><div class="l">Já recebido</div></div><div class="stat"><div class="v money">${brl(t.receber)}</div><div class="l">A receber</div></div></div>
     <div class="list" style="margin-top:8px">${ls_.slice(0,12).map(linhaLanc).join('')}</div><div class="acts"><button class="btn sm" data-a="novoLanc" data-cli="${c.id}">+ Lançamento</button></div>`}
   const contato=[c.contato,c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:'',c.telefone?`<a href="https://wa.me/${esc(String(c.telefone).replace(/\D/g,'').replace(/^(?!55)/,'55'))}" target="_blank" rel="noopener">${esc(c.telefone)}</a>`:'',c.instagram?`<a href="https://instagram.com/${esc(String(c.instagram).replace(/^@/,''))}" target="_blank" rel="noopener">@${esc(String(c.instagram).replace(/^@/,''))}</a>`:''].filter(Boolean);
-  return `${cab(pontoCor(c.cor)+' '+esc(c.nome))}
+  return `${cab(pontoCor(corCliente(c.id))+' '+esc(c.nome))}
   <div class="bar">${chip(nomeDe(CLI_ST,c.status||'ativo'),'dot c-'+(c.status||'ativo'))}${(c.servicos||[]).map(s=>chip(s)).join('')}</div>
   ${contato.length?`<div class="box" style="white-space:normal;display:grid;gap:4px">${contato.map(x=>`<div>${x.startsWith('<')?x:esc(x)}</div>`).join('')}</div>`:''}
   ${c.obs?`<h2 class="sec">Observações</h2><div class="box">${esc(c.obs)}</div>`:''}
@@ -702,7 +710,7 @@ function formCliente(c){
   <div class="two">${fld('Status',`<select name="status">${opts(CLI_ST,c.status)}</select>`)}${fld('Pessoa de contato',`<input name="contato" value="${esc(c.contato||'')}">`)}</div>
   <div class="two">${fld('WhatsApp',`<input name="telefone" inputmode="tel" value="${esc(c.telefone||'')}">`)}${fld('Instagram',`<input name="instagram" value="${esc(c.instagram||'')}" placeholder="@perfil">`)}</div>
   ${fld('E-mail',`<input type="email" name="email" value="${esc(c.email||'')}">`)}
-  <div class="fld"><span>Cor no calendário</span><div class="cores">${(()=>{const atual=c.cor||(c.id?'':proxCor());const lista=CORES.some(([x])=>x===atual)||!atual?CORES:[[atual,'Atual'],...CORES];
+  <div class="fld"><span>Cor no calendário</span><div class="cores">${(()=>{const atual=c.cor||(c.id?corCliente(c.id):proxCor());const lista=CORES.some(([x])=>x===atual)||!atual?CORES:[[atual,'Atual'],...CORES];
     return lista.map(([x,n])=>`<label title="${n}"><input type="radio" name="cor" value="${x}" ${x===atual?'checked':''} aria-label="${n}"><span style="--c:${x}"></span></label>`).join('')})()}</div></div>
   ${fld('Serviços',`<div class="picks">${[...new Set([...(D.listas.servicos||[]),...(c.servicos||[])])].map(s=>`<label><input type="checkbox" name="servicos" value="${esc(s)}" ${(c.servicos||[]).includes(s)?'checked':''}>${esc(s)}</label>`).join('')}</div>`)}
   ${fld('Observações',`<textarea name="obs">${esc(c.obs||'')}</textarea>`)}
