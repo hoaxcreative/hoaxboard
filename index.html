@@ -144,8 +144,21 @@ button.card:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
 .cal .d.out{opacity:.35}
 .cal .d.hj{border-color:var(--accent)}
 .cal .d .n{font-size:12px;font-weight:700}
+.pt{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;vertical-align:0}
+.card.cor,.kc.cor{border-left:4px solid var(--c)}
+.cores{display:flex;flex-wrap:wrap;gap:8px}
+.cores label{cursor:pointer}
+.cores input{position:absolute;opacity:0;pointer-events:none}
+.cores span{display:block;width:34px;height:34px;border-radius:50%;background:var(--c);border:3px solid transparent;box-shadow:0 0 0 1px var(--line)}
+.cores input:checked+span{border-color:var(--bg);box-shadow:0 0 0 2px var(--ink)}
+.cores input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.legenda{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:12px;color:var(--muted)}
+.legenda span{display:inline-flex;align-items:center;gap:6px}
 .cal .ev{font-size:10.5px;line-height:1.2;padding:2px 4px;border-radius:5px;background:var(--surface2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid currentColor}
-@media (max-width:600px){.cal .d{min-height:58px}.cal .ev{font-size:0;height:6px;padding:0;border-left:0;background:currentColor}}
+.cal .ev.cc{color:var(--ink);border-left-color:var(--c);background:color-mix(in srgb,var(--c) 48%,var(--surface2))}
+.cal .ev.feito{opacity:.45;text-decoration:line-through}
+.cal .ev.late{box-shadow:inset 0 0 0 1px var(--bad)}
+@media (max-width:600px){.cal .d{min-height:58px}.cal .ev{font-size:0;height:6px;padding:0;border-left:0;background:currentColor}.cal .ev.cc{background:var(--c)}}
 
 /* Folha (modal) */
 #sheet .back{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
@@ -246,6 +259,7 @@ const LISTAS={
   formas:['Pix','Transferência','Boleto','Cartão','Débito','Dinheiro']
 };
 const NOMES_LISTAS={servicos:'Serviços dos clientes',tipos:'Tipos de demanda',catEntrada:'Categorias de entrada',catSaida:'Categorias de despesa',formas:'Formas de pagamento'};
+const CORES=[['#6E9BEF','Azul'],['#5FB878','Verde'],['#8B7CF6','Roxo'],['#E8A33D','Amarelo'],['#D16BA5','Rosa'],['#2BB0A6','Turquesa'],['#EA5814','Laranja'],['#A47148','Marrom'],['#E5484D','Vermelho'],['#8C8780','Cinza']];
 const nomeDe=(arr,id)=>(arr.find(x=>x.id===id)||{}).nome||'';
 
 /* ================= Dados ================= */
@@ -314,6 +328,10 @@ async function apagarArquivo(id){
 const isAdmin=()=>ui.eu?.papel==='admin';
 const cliente=id=>D.clientes.find(c=>c.id===id);
 const nomeCliente=id=>cliente(id)?.nome||'';
+const corCliente=id=>cliente(id)?.cor||'';
+// Cor para um cliente novo: a primeira da paleta que ainda ninguém usa
+function proxCor(){const usadas=D.clientes.map(c=>c.cor);return (CORES.find(([c])=>!usadas.includes(c))||CORES[D.clientes.length%CORES.length])[0]}
+const pontoCor=c=>c?`<i class="pt" style="background:${esc(c)}"></i>`:'';
 const demanda=id=>D.demandas.find(d=>d.id===id);
 const membro=e=>D.membros.find(m=>m.id===e||m.email===e);
 const aberta=d=>d.status!=='entregue';
@@ -390,8 +408,8 @@ function avatar(email,cls=''){
 }
 const avatares=list=>(list||[]).length?`<span class="avs">${list.map(e=>avatar(e,'sm')).join('')}</span>`:'';
 function cartaoDemanda(d){
-  const cli=nomeCliente(d.cliente);
-  return `<button class="card" data-a="verDemanda" data-id="${d.id}">
+  const cli=nomeCliente(d.cliente),cor=corCliente(d.cliente);
+  return `<button class="card ${cor?'cor':''}" ${cor?`style="--c:${esc(cor)}"`:''} data-a="verDemanda" data-id="${d.id}">
     <div class="row"><div class="grow"><div class="t">${esc(d.titulo||'Sem título')}</div>
     <div class="sub">${cli?`<span>${esc(cli)}</span>`:''}${chipPrazo(d)}${chipStatus(d.status)}${chipPrio(d.prioridade)}</div></div>${avatares(d.resp)}</div></button>`;
 }
@@ -446,7 +464,8 @@ function quadro(lista){
     itens.sort(porPrazo);
     return `<section class="col" data-drop="${s.id}"><h3><span class="c-${s.id}">${s.nome}</span><span class="muted">${itens.length}</span></h3>
       ${itens.map(d=>{const i=STATUS.findIndex(x=>x.id===d.status);const prox=STATUS[i+1];const cli=nomeCliente(d.cliente);
-      return `<div class="kc" draggable="true" data-drag="${d.id}" data-a="verDemanda" data-id="${d.id}" role="button" tabindex="0">
+      const cor=corCliente(d.cliente);
+      return `<div class="kc ${cor?'cor':''}" ${cor?`style="--c:${esc(cor)}"`:''} draggable="true" data-drag="${d.id}" data-a="verDemanda" data-id="${d.id}" role="button" tabindex="0">
         <div class="t">${esc(d.titulo||'Sem título')}</div>
         <div class="sub">${cli?`<span>${esc(cli)}</span>`:''}${chipPrazo(d)}${chipPrio(d.prioridade)}</div>
         <div class="foot">${avatares(d.resp)||'<span></span>'}${prox?`<button class="next" data-a="avancar" data-id="${d.id}">${esc(prox.nome)} →</button>`:''}</div></div>`}).join('')}
@@ -473,7 +492,8 @@ function calendario(lista){
   return `<div class="monthnav"><button class="icon-btn" data-a="calMes" data-n="-1">${I.ant}</button><b>${nomeMes(m)}</b><button class="icon-btn" data-a="calMes" data-n="1">${I.prox}</button><button class="btn sm ghost" data-a="calHoje">Hoje</button></div>
   <div class="cal">${['seg','ter','qua','qui','sex','sáb','dom'].map(w=>`<div class="wd">${w}</div>`).join('')}
   ${dias.map(dia=>{const ev=lista.filter(d=>d.prazo===dia).sort(porPrazo);
-    return `<button class="d ${mesDe(dia)!==m?'out':''} ${dia===h?'hj':''}" data-a="verDia" data-d="${dia}"><span class="n">${parse(dia).getDate()}</span>${ev.slice(0,3).map(d=>`<span class="ev c-${atrasada(d)?'alta':d.status}">${esc(d.titulo)}</span>`).join('')}${ev.length>3?`<span class="muted" style="font-size:10px">+${ev.length-3}</span>`:''}</button>`}).join('')}</div>`;
+    return `<button class="d ${mesDe(dia)!==m?'out':''} ${dia===h?'hj':''}" data-a="verDia" data-d="${dia}"><span class="n">${parse(dia).getDate()}</span>${ev.slice(0,3).map(d=>{const cor=corCliente(d.cliente);return `<span class="ev ${cor?'cc':'c-'+d.status} ${d.status==='entregue'?'feito':''} ${atrasada(d)?'late':''}" ${cor?`style="--c:${esc(cor)}"`:''}>${esc(d.titulo)}</span>`}).join('')}${ev.length>3?`<span class="muted" style="font-size:10px">+${ev.length-3}</span>`:''}</button>`}).join('')}</div>
+  ${(()=>{const ids=[...new Set(lista.filter(d=>mesDe(d.prazo)===m).map(d=>d.cliente).filter(Boolean))];return ids.length?`<div class="legenda">${ids.map(id=>`<span>${pontoCor(corCliente(id)||'var(--muted)')}${esc(nomeCliente(id))}</span>`).join('')}</div>`:''})()}`;
 }
 
 function telaClientes(){
@@ -485,7 +505,7 @@ function telaClientes(){
   <div class="list">${lista.length?lista.map(c=>{
     const ab=D.demandas.filter(d=>d.cliente===c.id&&aberta(d));const atr=ab.filter(atrasada).length;
     const tot=isAdmin()||pessoal()?totaisCliente(c.id):null;
-    return `<button class="card" data-a="verCliente" data-id="${c.id}"><div class="row"><div class="av">${esc(iniciais(c.nome))}</div><div class="grow">
+    return `<button class="card" data-a="verCliente" data-id="${c.id}"><div class="row"><div class="av" ${c.cor?`style="background:${esc(c.cor)};color:#0A0A0A;border-color:transparent"`:''}>${esc(iniciais(c.nome))}</div><div class="grow">
       <div class="t">${esc(c.nome)}</div><div class="sub">${chip(nomeDe(CLI_ST,c.status||'ativo'),'dot c-'+(c.status||'ativo'))}<span>${ab.length} ${ab.length===1?'demanda aberta':'demandas abertas'}</span>${atr?chip(atr+' atrasada'+(atr>1?'s':''),'late'):''}${(c.servicos||[]).map(s=>chip(s)).join('')}</div></div>
       ${tot&&tot.receber?`<div class="right"><div class="money">${brl(tot.receber)}</div><div class="muted" style="font-size:11px">a receber</div></div>`:''}</div></button>`}).join(''):vazio(D.clientes.length?'Nenhum cliente com esse nome.':'Cadastre o primeiro cliente no botão +.')}</div>`;
 }
@@ -609,7 +629,7 @@ function htmlDemanda(d){
   return `${cab(esc(d.titulo||'Sem título'))}
   <div class="bar"><select class="sel" data-ch="statusDem" data-id="${d.id}">${opts(STATUS,d.status)}</select>${chipPrazo(d)}${chipPrio(d.prioridade)}</div>
   <dl class="kv">
-    <dt>Cliente</dt><dd>${cli?`<a href="#" data-a="verCliente" data-id="${cli.id}">${esc(cli.nome)}</a>`:'<span class="muted">Sem cliente</span>'}</dd>
+    <dt>Cliente</dt><dd>${cli?`${pontoCor(cli.cor)} <a href="#" data-a="verCliente" data-id="${cli.id}">${esc(cli.nome)}</a>`:'<span class="muted">Sem cliente</span>'}</dd>
     <dt>Prazo</dt><dd>${d.prazo?dataLonga(d.prazo):'<span class="muted">Sem prazo</span>'}</dd>
     ${d.tipo?`<dt>Tipo</dt><dd>${esc(d.tipo)}</dd>`:''}
     <dt>Com</dt><dd>${(d.resp||[]).length?(d.resp.map(e=>esc(membro(e)?.nome||e)).join(', ')):'<span class="muted">Ninguém</span>'}</dd>
@@ -643,7 +663,7 @@ function formDemanda(d,pre={}){
 async function clientePorNome(nome){
   nome=String(nome||'').trim();if(!nome)return '';
   const c=D.clientes.find(x=>x.nome.toLowerCase()===nome.toLowerCase());if(c)return c.id;
-  const novo=await salvar('clientes',{nome,status:'ativo',servicos:[]});toast('Cliente '+nome+' cadastrado.');return novo.id;
+  const novo=await salvar('clientes',{nome,status:'ativo',servicos:[],cor:proxCor()});toast('Cliente '+nome+' cadastrado.');return novo.id;
 }
 async function enviarDemanda(f,id){
   const fd=new FormData(f);const antigo=id?demanda(id):null;
@@ -665,7 +685,7 @@ function htmlCliente(c){
     fin=`<h2 class="sec">Financeiro</h2><div class="grid stats" style="grid-template-columns:1fr 1fr"><div class="stat"><div class="v money pos">${brl(t.recebido)}</div><div class="l">Já recebido</div></div><div class="stat"><div class="v money">${brl(t.receber)}</div><div class="l">A receber</div></div></div>
     <div class="list" style="margin-top:8px">${ls_.slice(0,12).map(linhaLanc).join('')}</div><div class="acts"><button class="btn sm" data-a="novoLanc" data-cli="${c.id}">+ Lançamento</button></div>`}
   const contato=[c.contato,c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:'',c.telefone?`<a href="https://wa.me/${esc(String(c.telefone).replace(/\D/g,'').replace(/^(?!55)/,'55'))}" target="_blank" rel="noopener">${esc(c.telefone)}</a>`:'',c.instagram?`<a href="https://instagram.com/${esc(String(c.instagram).replace(/^@/,''))}" target="_blank" rel="noopener">@${esc(String(c.instagram).replace(/^@/,''))}</a>`:''].filter(Boolean);
-  return `${cab(esc(c.nome))}
+  return `${cab(pontoCor(c.cor)+' '+esc(c.nome))}
   <div class="bar">${chip(nomeDe(CLI_ST,c.status||'ativo'),'dot c-'+(c.status||'ativo'))}${(c.servicos||[]).map(s=>chip(s)).join('')}</div>
   ${contato.length?`<div class="box" style="white-space:normal;display:grid;gap:4px">${contato.map(x=>`<div>${x.startsWith('<')?x:esc(x)}</div>`).join('')}</div>`:''}
   ${c.obs?`<h2 class="sec">Observações</h2><div class="box">${esc(c.obs)}</div>`:''}
@@ -682,6 +702,8 @@ function formCliente(c){
   <div class="two">${fld('Status',`<select name="status">${opts(CLI_ST,c.status)}</select>`)}${fld('Pessoa de contato',`<input name="contato" value="${esc(c.contato||'')}">`)}</div>
   <div class="two">${fld('WhatsApp',`<input name="telefone" inputmode="tel" value="${esc(c.telefone||'')}">`)}${fld('Instagram',`<input name="instagram" value="${esc(c.instagram||'')}" placeholder="@perfil">`)}</div>
   ${fld('E-mail',`<input type="email" name="email" value="${esc(c.email||'')}">`)}
+  <div class="fld"><span>Cor no calendário</span><div class="cores">${(()=>{const atual=c.cor||(c.id?'':proxCor());const lista=CORES.some(([x])=>x===atual)||!atual?CORES:[[atual,'Atual'],...CORES];
+    return lista.map(([x,n])=>`<label title="${n}"><input type="radio" name="cor" value="${x}" ${x===atual?'checked':''} aria-label="${n}"><span style="--c:${x}"></span></label>`).join('')})()}</div></div>
   ${fld('Serviços',`<div class="picks">${[...new Set([...(D.listas.servicos||[]),...(c.servicos||[])])].map(s=>`<label><input type="checkbox" name="servicos" value="${esc(s)}" ${(c.servicos||[]).includes(s)?'checked':''}>${esc(s)}</label>`).join('')}</div>`)}
   ${fld('Observações',`<textarea name="obs">${esc(c.obs||'')}</textarea>`)}
   <div class="acts"><button class="btn pri">Salvar</button><button type="button" class="btn ghost" data-a="${c.id?'verCliente':'fechar'}" data-id="${c.id||''}">Cancelar</button></div></form>`;
@@ -773,7 +795,7 @@ async function importarCSVs(files){
   let n={cli:0,dem:0,fin:0};
   for(const{t,k}of lista)for(const r of t){
     if(k==='cli'){const nome=r['Nome'];if(!nome||D.clientes.some(c=>c.nome.toLowerCase()===nome.toLowerCase()))continue;
-      await salvar('clientes',{nome,status:mapa(r['Status'],[['ativo','ativo'],['pausado','pausado'],['encerrado','encerrado']])||'ativo',contato:r['Contato']||'',email:r['E-mail']||'',telefone:r['Telefone']||'',servicos:(r['Serviços']||'').split(',').map(s=>s.trim()).filter(Boolean),obs:r['Observações']||''});n.cli++}
+      await salvar('clientes',{nome,cor:proxCor(),status:mapa(r['Status'],[['ativo','ativo'],['pausado','pausado'],['encerrado','encerrado']])||'ativo',contato:r['Contato']||'',email:r['E-mail']||'',telefone:r['Telefone']||'',servicos:(r['Serviços']||'').split(',').map(s=>s.trim()).filter(Boolean),obs:r['Observações']||''});n.cli++}
     if(k==='dem'){const titulo=r['Demanda'];if(!titulo)continue;const prazo=dataDe(r['Prazo']);
       if(D.demandas.some(d=>d.titulo===titulo&&(d.prazo||'')===prazo))continue;
       await salvar('demandas',{titulo,cliente:await clientePorNome(semLink(r['Cliente'])),prazo,
@@ -879,7 +901,7 @@ document.addEventListener('submit',async e=>{
   try{
     if(k==='demanda')await enviarDemanda(f,f.dataset.id);
     else if(k==='cliente'){const fd=new FormData(f);const antigo=f.dataset.id?cliente(f.dataset.id):null;
-      const c=await salvar('clientes',{...(antigo||{}),nome:fd.get('nome').trim(),status:fd.get('status'),contato:fd.get('contato').trim(),telefone:fd.get('telefone').trim(),instagram:fd.get('instagram').trim(),email:fd.get('email').trim(),servicos:fd.getAll('servicos'),obs:fd.get('obs').trim()});
+      const c=await salvar('clientes',{...(antigo||{}),nome:fd.get('nome').trim(),status:fd.get('status'),contato:fd.get('contato').trim(),telefone:fd.get('telefone').trim(),instagram:fd.get('instagram').trim(),email:fd.get('email').trim(),servicos:fd.getAll('servicos'),cor:fd.get('cor')||'',obs:fd.get('obs').trim()});
       abrirFolha(htmlCliente(c),{tipo:'cliente',id:c.id})}
     else if(k==='lanc')await enviarLanc(f,f.dataset.id);
     else if(k==='addChk'){const t=new FormData(f).get('t').trim();if(t){const d=demanda(f.dataset.id);await salvar('demandas',{...d,checklist:[...(d.checklist||[]),{t,ok:false}]})}}
