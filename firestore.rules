@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// Regras do HOAX BOARD. Copie tudo e cole em Firebase › Firestore Database › Regras › Publicar.
+// Só entra quem estiver cadastrado em "membros" (a dona cadastra a equipe pelo app).
+// O financeiro só aparece para quem tem papel "admin".
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // E-mail da dona do board (o mesmo de HOAX_DONO no firebase-config.js), em minúsculas.
+    function dono() { return logado() && meuEmail() == 'victoria.hoax@gmail.com'; }
+
+    function logado() { return request.auth != null && request.auth.token.email_verified == true; }
+    function meuEmail() { return request.auth.token.email.lower(); }
+    function ficha() { return /databases/$(database)/documents/membros/$(meuEmail()); }
+    function membro() { return dono() || (logado() && exists(ficha())); }
+    function admin() { return dono() || (membro() && get(ficha()).data.papel == 'admin'); }
+
+    match /membros/{email} {
+      allow read: if membro();
+      allow write: if admin();
+      // Cada pessoa pode atualizar a própria foto, nome e notificações.
+      allow update: if logado() && email == meuEmail()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid', 'nome', 'foto', 'push', 'visto']);
+    }
+
+    match /config/{doc} {
+      allow read: if membro();
+      allow write: if admin();
+    }
+
+    match /clientes/{id}  { allow read, write: if membro(); }
+    match /demandas/{id}  { allow read, write: if membro(); }
+    match /anexos/{id}    { allow read, write: if membro(); }
+    match /arquivos/{id}  { allow read, write: if membro(); }
+
+    match /lancamentos/{id} { allow read, write: if admin(); }
+
+    // Espaço pessoal de cada sócio (freelas: clientes, demandas, financeiro, anexos)
+    // e a parte que cada um recebeu nas entradas da Hoax. Só a própria conta lê e escreve.
+    match /pessoal/{email}/{doc=**} {
+      allow read, write: if membro() && email == meuEmail();
+    }
+  }
+}
