@@ -27,3 +27,16 @@ Sem o Firebase configurado, o app roda em modo teste: os dados ficam só no apar
 - `clientes`, `demandas`, `anexos` (links e miniaturas), `arquivos` (imagem inteira de cada anexo)
 - `lancamentos`: só admins leem e escrevem
 - `config/listas`: listas editáveis (serviços, tipos, categorias, formas de pagamento)
+
+## Notificações (uma vez)
+
+1. Firebase › Configurações do projeto › Cloud Messaging › Certificados push da Web › Gerar par de chaves. A chave vai em `FIREBASE_VAPID_KEY` no `firebase-config.js`.
+2. Firebase › Configurações do projeto › Contas de serviço › Gerar nova chave privada (baixa um .json).
+3. GitHub › hoaxboard › Settings › Secrets and variables › Actions › New repository secret: nome `FIREBASE_SERVICE_ACCOUNT`, valor = o .json inteiro.
+4. GitHub › hoaxboard › Add file › Create new file: `.github/workflows/notificacoes.yml` com o conteúdo do arquivo de mesmo nome desta pasta (o token do computador não tem permissão para enviar workflows).
+
+O envio roda a cada 30 minutos (`notificacoes/enviar.mjs`): resumo da manhã às 8h, financeiro às 9h (admins) e comentários/demandas novas do outro sócio. O que já foi enviado fica em `sistema/notif_{email}` (nenhuma regra libera essa coleção para o app).
+
+## Cópia no Google Drive (uma vez)
+
+Ativar a API do Google Drive no projeto: console.cloud.google.com/apis/library/drive.googleapis.com?project=hoax-board. O app pede a permissão `drive.file` (só enxerga os arquivos que ele mesmo cria) e salva na pasta "HOAX BOARD - cópias de segurança".
