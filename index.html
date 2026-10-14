@@ -288,6 +288,42 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
 .card,.stat{transition:transform .18s ease,box-shadow .18s ease}
 @media (hover:hover){button.card:hover,button.stat:hover{transform:translateY(-2px)}}
 button.card:active,button.stat:active,.kc:active{transform:scale(.985)}
+/* Resumo do mês */
+.relatorio{background:#fff;color:#111;border-radius:16px;padding:22px;margin-top:6px}
+.relatorio .rel-topo{display:flex;align-items:center;gap:14px;border-bottom:2px solid #EA5814;padding-bottom:12px;margin-bottom:14px}
+.relatorio .rel-topo img{height:26px}
+.relatorio .rel-tit{font-family:var(--font);font-stretch:125%;font-weight:900;text-transform:uppercase;font-size:20px;line-height:1}
+.relatorio .rel-sub{font-size:13px;color:#555;margin-top:3px}
+.relatorio .rel-nums{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px}
+.relatorio .rel-nums div{flex:1;min-width:110px;background:#F4F1EC;border-radius:12px;padding:10px 12px}
+.relatorio .rel-nums b{display:block;font-size:20px;font-weight:800}
+.relatorio .rel-nums span{font-size:12px;color:#555}
+.relatorio h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#EA5814;margin:16px 0 6px;font-family:var(--mono);font-weight:500}
+.relatorio ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px}
+.relatorio ul span{color:#666;font-size:13px}
+.relatorio p{font-size:14px;color:#555;margin:4px 0}
+.relatorio .rel-pe{margin-top:18px;font-size:11px;color:#999}
+#print{display:none}
+@media print{
+  @page{margin:14mm}
+  html,body{background:#fff!important}
+  body::before{display:none!important}
+  body>*{display:none!important}
+  body>#print{display:block!important}
+  #print .relatorio{border-radius:0;padding:0}
+}
+/* Arrastar no celular */
+.kc{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.kc.pegando{opacity:.35}
+.kc.fantasma{position:fixed;z-index:90;pointer-events:none;transform:rotate(2deg) scale(1.04);box-shadow:0 20px 40px rgba(0,0,0,.45);opacity:.96;margin:0}
+body.arrastando{overflow:hidden;touch-action:none}
+/* Comentários */
+.coments{display:grid;gap:8px}
+.coment{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;background:var(--glass);border:1px solid var(--glass-brd)}
+.coment .cab{display:flex;align-items:center;gap:8px;font-size:13px}
+.coment .cab span{color:var(--muted);font-size:12px;flex:1}
+.coment .cab .del{border:0;background:none;color:var(--muted);font-size:16px;cursor:pointer}
+.coment .txt{font-size:14px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px}
 /* Grupos da lista */
 .sec.tog{display:flex;align-items:center;gap:8px;margin:22px 0 10px;width:100%;border:0;background:none;padding:6px 0;cursor:pointer;text-align:left;font:inherit;font-family:var(--mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .sec.tog .seta{transition:transform .2s ease;flex:none}
@@ -330,6 +366,7 @@ const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.par
 
 /* ================= Listas e opções ================= */
 const STATUS=[{id:'afazer',nome:'A fazer'},{id:'andamento',nome:'Em andamento'},{id:'revisao',nome:'Em revisão'},{id:'entregue',nome:'Entregue'}];
+const REPETE=[{id:'',nome:'Não repete'},{id:'semana',nome:'Toda semana'},{id:'2semanas',nome:'A cada 2 semanas'},{id:'mes',nome:'Todo mês'}];
 const PRIO=[{id:'alta',nome:'Alta'},{id:'media',nome:'Média'},{id:'baixa',nome:'Baixa'}];
 const CLI_ST=[{id:'ativo',nome:'Ativo'},{id:'pausado',nome:'Pausado'},{id:'encerrado',nome:'Encerrado'}];
 const PAPEIS=[{id:'admin',nome:'Admin (vê tudo, inclusive o financeiro)'},{id:'equipe',nome:'Equipe (demandas e clientes)'}];
@@ -348,8 +385,8 @@ const nomeDe=(arr,id)=>(arr.find(x=>x.id===id)||{}).nome||'';
 const COLS=['clientes','demandas','lancamentos','anexos','membros'];
 // Dois espaços: "hoax" (compartilhado entre os sócios) e "pessoal" (freelas de cada um, só a própria conta vê).
 // D.clientes, D.demandas, D.lancamentos e D.anexos apontam para o espaço aberto no momento (ui.esp).
-const ESPACOS=['clientes','demandas','lancamentos','anexos'];
-const E={hoax:{clientes:[],demandas:[],lancamentos:[],anexos:[]},pessoal:{clientes:[],demandas:[],lancamentos:[],anexos:[]}};
+const ESPACOS=['clientes','demandas','lancamentos','anexos','comentarios'];
+const E={hoax:{clientes:[],demandas:[],lancamentos:[],anexos:[],comentarios:[]},pessoal:{clientes:[],demandas:[],lancamentos:[],anexos:[],comentarios:[]}};
 const D={membros:[],listas:{...LISTAS},minhas:{}};
 for(const c of ESPACOS)Object.defineProperty(D,c,{get:()=>E[ui.esp][c],set:v=>{E[ui.esp][c]=v},enumerable:true});
 // D.minhas: quanto EU recebi em cada entrada (id do lançamento → valor). Fica numa área do banco que só a própria conta lê.
@@ -374,7 +411,7 @@ const pessoal=()=>ui.esp==='pessoal';
 // Onde cada coleção mora no banco: as do espaço pessoal ficam dentro de pessoal/{email}/
 const ref=col=>pessoal()&&(ESPACOS.includes(col)||col==='arquivos')?fb.fs.collection('pessoal').doc(ui.eu.email).collection(col):fb.fs.collection(col);
 async function salvar(col,obj){
-  obj.id=obj.id||novoId();obj.atualizado=Date.now();if(!obj.criado){obj.criado=Date.now();obj.por=ui.eu?.email||''}
+  obj.id=obj.id||novoId();obj.atualizado=Date.now();if(col!=='membros')obj.editadoPor=ui.eu?.email||'';if(!obj.criado){obj.criado=Date.now();obj.por=ui.eu?.email||''}
   const arr=D[col],i=arr.findIndex(x=>x.id===obj.id);if(i>=0)arr[i]=obj;else arr.push(obj);
   if(ui.modo==='nuvem'){try{await ref(col).doc(obj.id).set(limpar(obj))}catch(e){toast('Não foi possível salvar ('+(e.code||e.message)+').')}}
   else salvarLocal();
@@ -494,11 +531,13 @@ function avatar(email,cls=''){
   return `<span class="av ${cls}" title="${esc(nome)}">${m?.foto?`<img src="${esc(m.foto)}" alt="" referrerpolicy="no-referrer">`:esc(iniciais(nome))}</span>`;
 }
 const avatares=list=>(list||[]).length?`<span class="avs">${list.map(e=>avatar(e,'sm')).join('')}</span>`:'';
+function extrasDem(d){const n=D.comentarios.filter(c=>c.demanda===d.id).length;
+  return (d.repete?`<span class="chip" title="${esc(nomeDe(REPETE,d.repete))}">↻</span>`:'')+(n?`<span class="chip" title="Comentários"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/></svg> ${n}</span>`:'')}
 function cartaoDemanda(d){
   const cli=nomeCliente(d.cliente),cor=corCliente(d.cliente);
   return `<button class="card ${cor?'cor':''}" ${cor?`style="--c:${esc(cor)}"`:''} data-a="verDemanda" data-id="${d.id}">
     <div class="row"><div class="grow"><div class="t">${esc(d.titulo||'Sem título')}</div>
-    <div class="sub">${chipCliente(d.cliente)}${chipPrazo(d)}${chipStatus(d.status)}${chipPrio(d.prioridade)}</div></div>${avatares(d.resp)}</div></button>`;
+    <div class="sub">${chipCliente(d.cliente)}${chipPrazo(d)}${chipStatus(d.status)}${extrasDem(d)}${chipPrio(d.prioridade)}</div></div>${avatares(d.resp)}</div></button>`;
 }
 const vazio=t=>`<div class="empty">${t}</div>`;
 const opts=(arr,val,vazioTxt)=>(vazioTxt!=null?`<option value="">${esc(vazioTxt)}</option>`:'')+arr.map(o=>{const id=typeof o==='string'?o:o.id,n=typeof o==='string'?o:o.nome;return `<option value="${esc(id)}" ${id===val?'selected':''}>${esc(n)}</option>`}).join('');
@@ -512,7 +551,9 @@ function telaInicio(){
   const rev=ab.filter(d=>d.status==='revisao').sort(porPrazo);
   const minhas=ab.filter(d=>(d.resp||[]).includes(ui.eu?.email));
   const primeiro=(ui.eu?.nome||'').split(' ')[0];
+  const semCopia=isAdmin()&&ui.modo==='nuvem'&&(diasSemBackup()==null||diasSemBackup()>=7);
   return `<h1 class="page disp">Oi${primeiro?', '+esc(primeiro):''}</h1>
+  ${semCopia?`<div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div class="grow" style="flex:1;min-width:180px"><div class="t">Cópia de segurança da semana</div><div class="sub">${diasSemBackup()==null?'Ainda não tem nenhuma cópia.':`A última foi há ${diasSemBackup()} dias.`} Um toque e fica salva no seu Google Drive.</div></div><button class="btn sm pri" data-a="backupDrive">Salvar no Drive</button></div>`:''}
   <div class="grid stats">
     <button class="stat ${atr.length?'bad':''}" data-a="filtroRapido" data-f="atrasadas"><div class="v">${atr.length}</div><div class="l">Atrasadas</div></button>
     <button class="stat hot" data-a="filtroRapido" data-f="semana"><div class="v">${sem.length}</div><div class="l">Vencem em 7 dias</div></button>
@@ -554,7 +595,7 @@ function quadro(lista){
       const cor=corCliente(d.cliente);
       return `<div class="kc ${cor?'cor':''}" ${cor?`style="--c:${esc(cor)}"`:''} draggable="true" data-drag="${d.id}" data-a="verDemanda" data-id="${d.id}" role="button" tabindex="0">
         <div class="t">${esc(d.titulo||'Sem título')}</div>
-        <div class="sub">${chipCliente(d.cliente)}${chipPrazo(d)}${chipPrio(d.prioridade)}</div>
+        <div class="sub">${chipCliente(d.cliente)}${chipPrazo(d)}${chipPrio(d.prioridade)}${extrasDem(d)}</div>
         <div class="foot">${avatares(d.resp)||'<span></span>'}${prox?`<button class="next" data-a="avancar" data-id="${d.id}">${esc(prox.nome)} →</button>`:''}</div></div>`}).join('')}
       ${nota}</section>`}).join('')}</div>`;
 }
@@ -664,7 +705,8 @@ function telaMais(){
   <h2 class="sec">Aparelho</h2>
   <div class="list">
     <button class="card" data-a="tema"><div class="t">Tema ${document.documentElement.dataset.theme==='light'?'claro':'escuro'}</div><div class="sub">Toque para trocar</div></button>
-    ${adm?`<button class="card" data-a="backup"><div class="t">Baixar cópia de segurança</div><div class="sub">Arquivo com todos os clientes, demandas e lançamentos</div></button>`:''}
+    ${adm?`<div class="card"><div class="t">Cópia de segurança</div><div class="sub">${diasSemBackup()==null?'Nenhuma cópia feita neste aparelho ainda.':diasSemBackup()===0?'Última cópia: hoje.':`Última cópia: há ${diasSemBackup()} ${diasSemBackup()===1?'dia':'dias'}.`} Inclui a Hoax, o seu Pessoal e a sua parte nas entradas.</div>
+      <div class="acts" style="margin-top:10px">${ui.modo==='nuvem'?`<button class="btn sm pri" data-a="backupDrive">Salvar no Google Drive</button>`:''}<button class="btn sm" data-a="backup">Baixar arquivo</button></div></div>`:''}
     ${ui.modo==='nuvem'?`<button class="card" data-a="sair"><div class="t">Sair</div><div class="sub">${esc(ui.eu?.email||'')}</div></button>`:''}
   </div>
   <p class="muted mono" style="font-size:11px;margin-top:24px">HOAX BOARD · ${ui.modo==='nuvem'?'conectado':'modo teste (dados só neste aparelho)'}</p>`;
@@ -747,6 +789,7 @@ function htmlDemanda(d){
     ${d.tipo?`<dt>Tipo</dt><dd>${esc(d.tipo)}</dd>`:''}
     <dt>Com</dt><dd>${(d.resp||[]).length?(d.resp.map(e=>esc(membro(e)?.nome||e)).join(', ')):'<span class="muted">Ninguém</span>'}</dd>
     ${d.entregueEm?`<dt>Entregue</dt><dd>${dataLonga(d.entregueEm)}</dd>`:''}
+    ${d.repete?`<dt>Repete</dt><dd>${esc(nomeDe(REPETE,d.repete))}</dd>`:''}
   </dl>
   ${d.briefing?`<h2 class="sec">Briefing</h2><div class="box">${esc(d.briefing)}</div>`:''}
   <h2 class="sec">Checklist ${chk.length?`<span class="n">${feitos}/${chk.length}</span>`:''}</h2>
@@ -757,7 +800,15 @@ function htmlDemanda(d){
   ${links.map(a=>`<div class="linkrow"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.nome||a.url)}</a><button class="del x" style="width:28px;height:28px;font-size:14px" data-a="delAnexo" data-id="${a.id}" aria-label="Remover">×</button></div>`).join('')}
   ${imgs.length?`<div class="thumbs">${imgs.map(a=>`<button class="thumb" data-a="verImagem" data-id="${a.id}"><img src="${a.thumb}" alt="${esc(a.nome||'')}"></button>`).join('')}</div>`:''}
   <div class="acts"><button class="btn sm" data-a="addLink" data-id="${d.id}">+ Link</button><label class="btn sm">+ Imagem<input type="file" accept="image/*" multiple hidden data-file="img" data-id="${d.id}"></label></div>
+  ${htmlComentarios(d)}
   <div class="acts"><button class="btn pri" data-a="editDemanda" data-id="${d.id}">Editar</button><button class="btn" data-a="duplicar" data-id="${d.id}">Duplicar</button><span class="sp"></span><button class="btn danger ghost" data-a="delDemanda" data-id="${d.id}">Excluir</button></div>`;
+}
+const quando=t=>{if(!t)return '';const d=new Date(t),h=new Date();const dia=iso(d)===iso(h)?'hoje':iso(d)===addDias(iso(h),-1)?'ontem':d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}).replace('.','');return `${dia}, ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`};
+function htmlComentarios(d){
+  const cs=D.comentarios.filter(c=>c.demanda===d.id).sort((a,b)=>(a.criado||0)-(b.criado||0));
+  return `<h2 class="sec">Comentários ${cs.length?`<span class="n">${cs.length}</span>`:''}</h2>
+  <div class="coments">${cs.map(c=>`<div class="coment">${avatar(c.por,'sm')}<div class="grow"><div class="cab"><b>${esc(primeiroNome(membro(c.por))||'Alguém')}</b><span>${quando(c.criado)}</span>${c.por===ui.eu?.email?`<button class="del" data-a="delComent" data-id="${c.id}" aria-label="Apagar comentário">×</button>`:''}</div><div class="txt">${esc(c.texto)}</div></div></div>`).join('')||`<p class="muted" style="font-size:13px;margin:0 0 8px">${pessoal()?'Anotações só suas.':'Recados entre vocês sobre esta demanda.'}</p>`}</div>
+  <form class="row" style="margin-top:8px;align-items:flex-end" data-form="coment" data-id="${d.id}"><textarea class="inp grow" name="t" rows="1" placeholder="Escrever um comentário" style="resize:none;min-height:40px"></textarea><button class="btn sm pri">Enviar</button></form>`;
 }
 function formDemanda(d,pre={}){
   d=d||{status:'afazer',prioridade:'media',resp:[],checklist:[],...pre};
@@ -767,6 +818,7 @@ function formDemanda(d,pre={}){
   ${fld('Cliente',`<input name="cliente" list="dl-cli" value="${esc(cli)}" placeholder="Escolha ou digite um nome novo"><datalist id="dl-cli">${D.clientes.map(c=>`<option value="${esc(c.nome)}">`).join('')}</datalist>`)}
   <div class="two">${fld('Prazo',`<input type="date" name="prazo" value="${esc(d.prazo||'')}">`)}${fld('Prioridade',`<select name="prioridade">${opts(PRIO,d.prioridade)}</select>`)}</div>
   <div class="two">${fld('Status',`<select name="status">${opts(STATUS,d.status)}</select>`)}${fld('Tipo',`<input name="tipo" list="dl-tipo" value="${esc(d.tipo||'')}"><datalist id="dl-tipo">${(D.listas.tipos||[]).map(t=>`<option value="${esc(t)}">`).join('')}</datalist>`)}</div>
+  ${fld('Repetir',`<select name="repete">${opts(REPETE,d.repete||'')}</select>`)}
   ${pessoal()?'':fld('Quem faz',`<div class="picks">${D.membros.map(m=>{const e=m.email||m.id;return `<label><input type="checkbox" name="resp" value="${esc(e)}" ${(d.resp||[]).includes(e)?'checked':''}>${esc(m.nome||e)}</label>`}).join('')}</div>`)}
   ${fld('Briefing',`<textarea name="briefing" placeholder="O que o cliente pediu, objetivo, público, formato">${esc(d.briefing||'')}</textarea>`)}
   ${fld('Feedback do cliente',`<textarea name="feedback" placeholder="Retornos e pedidos de ajuste">${esc(d.feedback||'')}</textarea>`)}
@@ -782,13 +834,24 @@ async function enviarDemanda(f,id){
   const fd=new FormData(f);const antigo=id?demanda(id):null;
   const d={...(antigo||{}),titulo:fd.get('titulo').trim(),cliente:await clientePorNome(fd.get('cliente')),prazo:fd.get('prazo')||'',
     prioridade:fd.get('prioridade'),status:fd.get('status'),tipo:fd.get('tipo').trim(),resp:fd.getAll('resp'),
-    briefing:fd.get('briefing').trim(),feedback:fd.get('feedback').trim()};
+    briefing:fd.get('briefing').trim(),feedback:fd.get('feedback').trim(),repete:fd.get('repete')||''};
   if(!antigo)d.checklist=String(fd.get('checklist')||'').split('\n').map(t=>t.trim()).filter(Boolean).map(t=>({t,ok:false}));
   marcarEntrega(d,antigo);
-  const s=await salvar('demandas',d);abrirFolha(htmlDemanda(s),{tipo:'demanda',id:s.id});
+  const s=await salvar('demandas',d);await criarProxima(s);abrirFolha(htmlDemanda(demanda(s.id)||s),{tipo:'demanda',id:s.id});
 }
 function marcarEntrega(d,antigo){if(d.status==='entregue'&&(!antigo||antigo.status!=='entregue'))d.entregueEm=hoje();if(d.status!=='entregue')delete d.entregueEm}
-async function mudarStatus(id,st){const d=demanda(id);if(!d||d.status===st)return;const n={...d,status:st};marcarEntrega(n,d);await salvar('demandas',n);toast(`${d.titulo}: ${nomeDe(STATUS,st)}`)}
+async function mudarStatus(id,st){const d=demanda(id);if(!d||d.status===st)return;const n={...d,status:st};marcarEntrega(n,d);const s=await salvar('demandas',n);toast(`${d.titulo}: ${nomeDe(STATUS,st)}`);await criarProxima(s)}
+// Demanda que se repete: ao ser entregue, cria a próxima (uma vez só) com o prazo seguinte e o checklist zerado
+async function criarProxima(d){
+  if(!d.repete||d.status!=='entregue'||d.proxCriada)return;
+  const base=d.prazo||hoje();
+  const prazo=d.repete==='semana'?addDias(base,7):d.repete==='2semanas'?addDias(base,14):addMeses(base,1);
+  const nova={...d,id:'',criado:0,status:'afazer',prazo,checklist:(d.checklist||[]).map(i=>({t:i.t,ok:false})),feedback:'',proxCriada:false};
+  delete nova.entregueEm;
+  await salvar('demandas',nova);
+  await salvar('demandas',{...demanda(d.id),proxCriada:true});
+  toast(`Próxima "${d.titulo}" criada para ${dataCurta(prazo)}.`);
+}
 
 // ----- Cliente -----
 function htmlCliente(c){
@@ -806,7 +869,7 @@ function htmlCliente(c){
   <div class="acts"><button class="btn sm" data-a="novaDemanda" data-cli="${c.id}">+ Demanda para ${esc(c.nome)}</button></div>
   ${ent.length?`<h2 class="sec">Entregues <span class="n">${ent.length}</span></h2><div class="list">${ent.slice(0,10).map(cartaoDemanda).join('')}</div>`:''}
   ${fin}
-  <div class="acts"><button class="btn pri" data-a="editCliente" data-id="${c.id}">Editar</button><span class="sp"></span><button class="btn danger ghost" data-a="delCliente" data-id="${c.id}">Excluir</button></div>`;
+  <div class="acts"><button class="btn pri" data-a="editCliente" data-id="${c.id}">Editar</button><button class="btn" data-a="resumo" data-id="${c.id}">Resumo do mês</button><span class="sp"></span><button class="btn danger ghost" data-a="delCliente" data-id="${c.id}">Excluir</button></div>`;
 }
 function formCliente(c){
   c=c||{status:'ativo',servicos:[]};
@@ -871,6 +934,115 @@ function formLista(k){
   <div class="acts"><button class="btn pri">Salvar</button><button type="button" class="btn ghost" data-a="fechar">Cancelar</button></div></form>`;
 }
 
+// ----- Resumo do mês para o cliente -----
+function dadosResumo(c,m){
+  const dem=D.demandas.filter(d=>d.cliente===c.id);
+  const entregues=dem.filter(d=>d.status==='entregue'&&mesDe(d.entregueEm||d.prazo)===m).sort((a,b)=>(a.entregueEm||a.prazo||'').localeCompare(b.entregueEm||b.prazo||''));
+  const andamento=dem.filter(aberta).sort(porPrazo);
+  const ls_=D.lancamentos.filter(l=>l.cliente===c.id&&l.tipo==='entrada'&&l.status!=='cancelado');
+  const recebido=ls_.filter(l=>l.status==='pago'&&mesDe(dataLanc(l))===m).reduce((a,l)=>a+num(l.valor),0);
+  const receber=ls_.filter(l=>l.status==='pendente').reduce((a,l)=>a+num(l.valor),0);
+  return {entregues,andamento,recebido,receber};
+}
+function htmlResumo(c){
+  const m=ui.resMes,r=dadosResumo(c,m),val=ui.resValores&&(isAdmin()||pessoal());
+  const item=(d,quando)=>`<li><b>${esc(d.titulo)}</b>${d.tipo?` <span>· ${esc(d.tipo)}</span>`:''}${quando?` <span>· ${quando}</span>`:''}</li>`;
+  return `${cab('Resumo do mês')}
+  <div class="monthnav"><button class="icon-btn" data-a="resMes" data-n="-1" data-id="${c.id}">${I.ant}</button><b>${nomeMes(m)}</b><button class="icon-btn" data-a="resMes" data-n="1" data-id="${c.id}">${I.prox}</button></div>
+  ${isAdmin()||pessoal()?`<label class="check" style="border:0"><input type="checkbox" data-ch="resValores" data-id="${c.id}" ${ui.resValores?'checked':''}><span>Mostrar valores no resumo</span></label>`:''}
+  <div class="relatorio" id="relatorio">
+    <div class="rel-topo"><img src="logo.svg" alt="hoax"><div><div class="rel-tit">${esc(c.nome)}</div><div class="rel-sub">Resumo de ${nomeMes(m)}</div></div></div>
+    <div class="rel-nums"><div><b>${r.entregues.length}</b><span>${r.entregues.length===1?'entrega':'entregas'} no mês</span></div><div><b>${r.andamento.length}</b><span>em andamento</span></div>${val?`<div><b>${brl(r.recebido)}</b><span>recebido no mês</span></div>`:''}</div>
+    <h3>Entregue no mês</h3>${r.entregues.length?`<ul>${r.entregues.map(d=>item(d,'entregue em '+dataCurta(d.entregueEm||d.prazo))).join('')}</ul>`:'<p>Nenhuma entrega neste mês.</p>'}
+    <h3>Em andamento</h3>${r.andamento.length?`<ul>${r.andamento.map(d=>item(d,d.prazo?'prazo '+dataCurta(d.prazo):'')).join('')}</ul>`:'<p>Nada em andamento.</p>'}
+    ${val&&r.receber?`<p class="rel-obs">Em aberto: ${brl(r.receber)}</p>`:''}
+    <p class="rel-pe">Hoax · ${new Date().toLocaleDateString('pt-BR')}</p>
+  </div>
+  <div class="acts"><button class="btn pri" data-a="imprimir">Baixar PDF</button><button class="btn" data-a="copiarResumo" data-id="${c.id}">Copiar texto</button><span class="sp"></span><button class="btn ghost" data-a="verCliente" data-id="${c.id}">Voltar</button></div>`;
+}
+function textoResumo(c){
+  const m=ui.resMes,r=dadosResumo(c,m),val=ui.resValores&&(isAdmin()||pessoal());
+  const l=[`*${c.nome}* · resumo de ${nomeMes(m)}`,'',`Entregue no mês (${r.entregues.length}):`,...(r.entregues.length?r.entregues.map(d=>`- ${d.titulo} (${dataCurta(d.entregueEm||d.prazo)})`):['- nenhuma entrega']),'',`Em andamento (${r.andamento.length}):`,...(r.andamento.length?r.andamento.map(d=>`- ${d.titulo}${d.prazo?' (prazo '+dataCurta(d.prazo)+')':''}`):['- nada em andamento'])];
+  if(val)l.push('',`Recebido no mês: ${brl(r.recebido)}`,...(r.receber?[`Em aberto: ${brl(r.receber)}`]:[]));
+  return l.join('\n');
+}
+
+// ----- Notificações -----
+// O app guarda em membros/{email}.push os endereços deste aparelho, o fuso e as preferências.
+// Quem envia é a tarefa do GitHub (pasta notificacoes/), a cada 30 minutos.
+const PUSH_PREFS=[['prazos','Resumo da manhã: demandas que vencem hoje, amanhã ou estão atrasadas'],['financeiro','Pagamentos que vencem hoje ou estão vencidos'],['equipe','Comentários e demandas novas que o outro sócio colocou para você']];
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+function pushEstado(){
+  if(!window.FIREBASE_VAPID_KEY||ui.modo!=='nuvem')return 'off';
+  if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window))return isIOS&&!standalone()?'tela':'sem';
+  if(Notification.permission==='denied')return 'bloqueado';
+  if(Notification.permission==='granted'&&ls.get('hb-push-token',''))return 'on';
+  return 'pedir';
+}
+async function mensageria(){if(!firebase.messaging)await carregarScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');return firebase.messaging()}
+const minhaFicha=()=>fb.fs.collection('membros').doc(ui.eu.email);
+async function salvarToken(){
+  const m=await mensageria(),reg=await navigator.serviceWorker.ready;
+  const token=await m.getToken({vapidKey:window.FIREBASE_VAPID_KEY,serviceWorkerRegistration:reg});
+  if(!token)throw new Error('sem token');
+  const FV=firebase.firestore.FieldValue,velho=ls.get('hb-push-token','');
+  await minhaFicha().update({'push.tokens':FV.arrayUnion(token),'push.tz':new Date().getTimezoneOffset()});
+  if(velho&&velho!==token)await minhaFicha().update({'push.tokens':FV.arrayRemove(velho)}).catch(()=>{});
+  ls.set('hb-push-token',token);
+}
+async function ativarPush(){
+  let perm='default';try{perm=await Notification.requestPermission()}catch(e){}
+  if(perm!=='granted'){toast(perm==='denied'?'Notificações bloqueadas. Libere nos ajustes do aparelho.':'Tudo bem. Dá para ativar depois.');return redesenharPerfil()}
+  try{await salvarToken();toast('Notificações ativadas neste aparelho.')}catch(e){toast('Não deu para ativar agora. Tente de novo em instantes.')}
+  redesenharPerfil();
+}
+async function desativarPush(){
+  const tk=ls.get('hb-push-token','');
+  try{if(tk)await minhaFicha().update({'push.tokens':firebase.firestore.FieldValue.arrayRemove(tk)});(await mensageria()).deleteToken().catch(()=>{})}catch(e){}
+  ls.set('hb-push-token','');toast('Notificações desativadas neste aparelho.');redesenharPerfil();
+}
+function htmlNotif(){
+  const st=pushEstado();if(st==='off'||st==='sem')return '';
+  const prefs={prazos:true,financeiro:true,equipe:true,...((membro(ui.eu.email)||{}).push?.prefs||{})};
+  const corpo=st==='tela'?`<p class="muted" style="font-size:13px;margin:0">No iPhone, as notificações só funcionam com o app aberto pelo ícone da Tela de Início (no Safari: Compartilhar › Adicionar à Tela de Início).</p>`
+    :st==='bloqueado'?`<p class="muted" style="font-size:13px;margin:0">As notificações estão bloqueadas neste aparelho. Libere em Ajustes › Notificações › HOAX BOARD e volte aqui.</p>`
+    :st==='pedir'?`<button class="btn pri" data-a="pushOn">Ativar notificações neste aparelho</button>`
+    :`<div class="row" style="gap:8px"><span class="chip dot c-pago">Ativadas neste aparelho</span><span class="sp" style="flex:1"></span><button class="btn sm ghost" data-a="pushOff">Desativar</button></div>
+      ${PUSH_PREFS.filter(([k])=>k!=='financeiro'||isAdmin()).map(([k,n])=>`<label class="check" style="border:0;padding:4px 0"><input type="checkbox" data-ch="pushPref" data-k="${k}" ${prefs[k]?'checked':''}><span style="font-size:14px">${n}</span></label>`).join('')}`;
+  return `<h2 class="sec">Notificações</h2><div class="card" style="display:grid;gap:8px">${corpo}</div>`;
+}
+function redesenharPerfil(){if(ui.sheet?.tipo==='perfil')$('#sheet .sheet').innerHTML=htmlPerfil()}
+
+// ----- Cópia de segurança -----
+// Tudo o que a pessoa enxerga: a Hoax, o espaço pessoal dela e a parte dela nas entradas (sem as imagens grandes).
+function dadosBackup(){return JSON.stringify({exportado:new Date().toISOString(),por:ui.eu?.email,hoax:E.hoax,membros:D.membros.map(({push,...m})=>m),listas:D.listas,pessoal:E.pessoal,minhaParte:D.minhas},null,1)}
+const diasSemBackup=()=>{const t=ls.get('hb-backup',0);return t?Math.floor((Date.now()-t)/864e5):null};
+// Salva no Google Drive da pessoa, na pasta "HOAX BOARD - cópias de segurança" (o app só enxerga os arquivos que ele mesmo criou)
+async function backupDrive(){
+  if(ui.modo!=='nuvem')return A.backup();
+  const prov=new firebase.auth.GoogleAuthProvider();prov.addScope('https://www.googleapis.com/auth/drive.file');prov.setCustomParameters({login_hint:ui.eu.email});
+  let token;
+  try{const r=await fb.auth.currentUser.reauthenticateWithPopup(prov);token=r.credential&&r.credential.accessToken}
+  catch(e){toast(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'?'Abra pelo navegador (Safari ou Chrome) para salvar no Drive, ou use "Baixar arquivo".':'Não foi possível entrar no Google Drive ('+e.code+').');return}
+  if(!token){toast('O Google não liberou o acesso ao Drive.');return}
+  toast('Salvando no Drive...');
+  const H={Authorization:'Bearer '+token},NOME='HOAX BOARD - cópias de segurança';
+  try{
+    const q=encodeURIComponent(`name='${NOME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const busca=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`,{headers:H});
+    if(!busca.ok)throw new Error((await busca.json().catch(()=>({}))).error?.message||busca.status);
+    let pasta=(await busca.json()).files?.[0]?.id;
+    if(!pasta)pasta=(await (await fetch('https://www.googleapis.com/drive/v3/files?fields=id',{method:'POST',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({name:NOME,mimeType:'application/vnd.google-apps.folder'})})).json()).id;
+    const corpo=new FormData();
+    corpo.append('metadata',new Blob([JSON.stringify({name:`hoax-board-${hoje()}.json`,parents:[pasta],mimeType:'application/json'})],{type:'application/json'}));
+    corpo.append('file',new Blob([dadosBackup()],{type:'application/json'}));
+    const up=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:H,body:corpo});
+    if(!up.ok)throw new Error((await up.json().catch(()=>({}))).error?.message||up.status);
+    ls.set('hb-backup',Date.now());render();toast('Cópia salva no seu Google Drive.');
+  }catch(e){toast(/has not been used|disabled/i.test(String(e.message))?'Falta ativar a API do Google Drive no projeto (passo no README).':'Não foi possível salvar no Drive: '+e.message)}
+}
+
 // ----- Perfil -----
 function htmlPerfil(){
   const eu=membro(ui.eu.email)||ui.eu;const foto=eu.foto||'';
@@ -885,6 +1057,7 @@ function htmlPerfil(){
     <div class="acts" style="margin-top:0"><button class="btn pri">Salvar nome</button></div></form>
   <dl class="kv" style="margin-top:18px"><dt>E-mail</dt><dd>${esc(ui.eu.email)}</dd><dt>Acesso</dt><dd>${ui.eu.papel==='admin'?'Admin':'Equipe'}</dd>
     <dt>Comigo</dt><dd>${comigo} ${comigo===1?'demanda aberta':'demandas abertas'} na Hoax</dd><dt>Freelas</dt><dd>${pes} ${pes===1?'demanda aberta':'demandas abertas'} no Pessoal</dd></dl>
+  ${htmlNotif()}
   <div class="acts"><button class="btn" data-a="tema">Tema ${document.documentElement.dataset.theme==='light'?'claro':'escuro'}</button><span class="sp"></span>${ui.modo==='nuvem'?`<button class="btn danger ghost" data-a="sair">Sair</button>`:''}</div>`;
 }
 // Atualiza só nome e foto da própria ficha (as regras deixam cada pessoa mexer só nisso)
@@ -975,11 +1148,13 @@ const A={
   novaDemanda:x=>abrirFolha(formDemanda(null,{cliente:x.cli||'',prazo:x.prazo||'',resp:ui.eu&&D.membros.length>1?[]:[ui.eu?.email].filter(Boolean)})),
   verDemanda:x=>{const d=demanda(x.id);if(d)abrirFolha(htmlDemanda(d),{tipo:'demanda',id:d.id})},
   editDemanda:x=>abrirFolha(formDemanda(demanda(x.id))),
-  duplicar:async x=>{const d=demanda(x.id);const c={...d,id:'',criado:0,titulo:d.titulo+' (cópia)',status:'afazer',checklist:(d.checklist||[]).map(i=>({t:i.t,ok:false}))};delete c.entregueEm;const s=await salvar('demandas',c);abrirFolha(htmlDemanda(s),{tipo:'demanda',id:s.id})},
+  duplicar:async x=>{const d=demanda(x.id);const c={...d,id:'',criado:0,proxCriada:false,titulo:d.titulo+' (cópia)',status:'afazer',checklist:(d.checklist||[]).map(i=>({t:i.t,ok:false}))};delete c.entregueEm;const s=await salvar('demandas',c);abrirFolha(htmlDemanda(s),{tipo:'demanda',id:s.id})},
   delDemanda:async x=>{const d=demanda(x.id);if(!confirm(`Excluir a demanda "${d.titulo}"? Os anexos dela também serão apagados.`))return;
     for(const a of D.anexos.filter(a=>a.demanda===x.id)){if(a.tipo==='imagem')apagarArquivo(a.id);await apagar('anexos',a.id)}
+    for(const c of D.comentarios.filter(c=>c.demanda===x.id))await apagar('comentarios',c.id);
     await apagar('demandas',x.id);fecharFolha();toast('Demanda excluída.')},
   avancar:async x=>{const d=demanda(x.id);const i=STATUS.findIndex(s=>s.id===d.status);if(STATUS[i+1])await mudarStatus(d.id,STATUS[i+1].id)},
+  delComent:async x=>{if(!confirm('Apagar este comentário?'))return;await apagar('comentarios',x.id)},
   delChk:async x=>{const d=demanda(x.id);const c=[...(d.checklist||[])];c.splice(+x.i,1);await salvar('demandas',{...d,checklist:c})},
   addLink:async x=>{const url=prompt('Cole o link (Drive, Figma, WeTransfer, referência...)');if(!url)return;
     const u=/^https?:\/\//i.test(url.trim())?url.trim():'https://'+url.trim();const nome=prompt('Nome do link (opcional)',(()=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return ''}})())||'';
@@ -1006,10 +1181,17 @@ const A={
   delMembro:async x=>{if(!confirm('Remover esta pessoa da equipe? Ela perde o acesso ao app.'))return;await apagar('membros',x.id);fecharFolha()},
   editLista:x=>abrirFolha(formLista(x.k)),
   tema:()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==='light'?'dark':'light';ls.set('hb-tema',r.dataset.theme);render();if(ui.sheet?.tipo==='perfil')$('#sheet .sheet').innerHTML=htmlPerfil()},
-  backup:()=>{const j={exportado:new Date().toISOString()};j.hoax=E.hoax;j.membros=D.membros;j.listas=D.listas;j.minhaParte=D.minhas;j.pessoal=E.pessoal;
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(j,null,1)],{type:'application/json'}));a.download=`hoax-board-${hoje()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)},
+  backup:()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([dadosBackup()],{type:'application/json'}));a.download=`hoax-board-${hoje()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);ls.set('hb-backup',Date.now());render()},
+  backupDrive:()=>backupDrive(),
   entrar:()=>{ui.entrouAgora=true;entrarGoogle()},
   entrarApp:()=>sairIntro(),
+  resumo:x=>{ui.resMes=mesDe(hoje());abrirFolha(htmlResumo(cliente(x.id)),{tipo:'resumo',id:x.id})},
+  resMes:x=>{ui.resMes=mesDe(addMeses(ui.resMes+'-01',+x.n));$('#sheet .sheet').innerHTML=htmlResumo(cliente(x.id))},
+  copiarResumo:async x=>{const t=textoResumo(cliente(x.id));try{await navigator.clipboard.writeText(t);toast('Resumo copiado. É só colar no WhatsApp.')}catch(e){prompt('Copie o resumo:',t)}},
+  imprimir:()=>{const r=$('#relatorio');if(!r)return;let p=$('#print');if(!p){p=document.createElement('div');p.id='print';document.body.appendChild(p)}
+    p.innerHTML=r.outerHTML;const img=p.querySelector('img');const vai=()=>{window.print()};if(img&&!img.complete)img.onload=vai;else vai()},
+  pushOn:()=>ativarPush(),
+  pushOff:()=>desativarPush(),
   perfil:()=>abrirFolha(htmlPerfil(),{tipo:'perfil'}),
   fotoGoogle:()=>salvarPerfil({foto:ui.fotoGoogle}),
   semFoto:()=>salvarPerfil({foto:''}),
@@ -1018,6 +1200,7 @@ const A={
 
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-a]');if(!t)return;
+  if(ui.semClique&&Date.now()-ui.semClique<400)return;
   if(t.tagName==='LABEL')return;
   const f=A[t.dataset.a];if(!f)return;
   if(t.dataset.a!=='fecharFundo'){e.stopPropagation();if(t.closest('.kc')&&t.classList.contains('next'))e.stopPropagation()}
@@ -1039,6 +1222,8 @@ document.addEventListener('input',e=>{const k=e.target.dataset.in;if(k){ui[k]=e.
 document.addEventListener('change',async e=>{
   const t=e.target;
   if(t.dataset.ch==='fCli'||t.dataset.ch==='fResp'){ui[t.dataset.ch]=t.value;render();return}
+  if(t.dataset.ch==='pushPref'){try{await minhaFicha().update({['push.prefs.'+t.dataset.k]:t.checked})}catch(err){toast('Não foi possível salvar.')}return}
+  if(t.dataset.ch==='resValores'){ui.resValores=t.checked;$('#sheet .sheet').innerHTML=htmlResumo(cliente(t.dataset.id));return}
   if(t.dataset.ch==='statusDem'){await mudarStatus(t.dataset.id,t.value);return}
   if(t.dataset.ch==='chk'){const d=demanda(t.dataset.id);const c=(d.checklist||[]).map((x,i)=>i===+t.dataset.i?{...x,ok:t.checked}:x);await salvar('demandas',{...d,checklist:c});return}
   if(t.dataset.file==='img'){const fs=[...t.files];t.value='';toast('Guardando '+fs.length+(fs.length>1?' imagens...':' imagem...'));await addImagens(fs,t.dataset.id);return}
@@ -1054,6 +1239,7 @@ document.addEventListener('submit',async e=>{
       const c=await salvar('clientes',{...(antigo||{}),nome:fd.get('nome').trim(),status:fd.get('status'),contato:fd.get('contato').trim(),telefone:fd.get('telefone').trim(),instagram:fd.get('instagram').trim(),email:fd.get('email').trim(),servicos:fd.getAll('servicos'),cor:fd.get('cor')||'',obs:fd.get('obs').trim()});
       abrirFolha(htmlCliente(c),{tipo:'cliente',id:c.id})}
     else if(k==='lanc')await enviarLanc(f,f.dataset.id);
+    else if(k==='coment'){const t=String(new FormData(f).get('t')).trim();if(t){await salvar('comentarios',{demanda:f.dataset.id,texto:t});const ta=$('#sheet textarea[name=t]');if(ta)ta.value=''}}
     else if(k==='addChk'){const t=new FormData(f).get('t').trim();if(t){const d=demanda(f.dataset.id);await salvar('demandas',{...d,checklist:[...(d.checklist||[]),{t,ok:false}]})}}
     else if(k==='membro'){const fd=new FormData(f);const email=String(fd.get('email')).trim().toLowerCase();const antigo=membro(email);
       await salvar('membros',{...(antigo||{}),id:email,email,nome:fd.get('nome').trim()||email.split('@')[0],papel:fd.get('papel')});fecharFolha();toast('Pronto. '+email+' já pode entrar.')}
@@ -1066,6 +1252,33 @@ document.addEventListener('dragstart',e=>{const c=e.target.closest('[data-drag]'
 document.addEventListener('dragover',e=>{const c=e.target.closest('[data-drop]');if(c){e.preventDefault();document.querySelectorAll('.col.over').forEach(x=>x!==c&&x.classList.remove('over'));c.classList.add('over')}});
 document.addEventListener('dragleave',e=>{const c=e.target.closest('[data-drop]');if(c&&!c.contains(e.relatedTarget))c.classList.remove('over')});
 document.addEventListener('drop',e=>{const c=e.target.closest('[data-drop]');if(!c)return;e.preventDefault();c.classList.remove('over');const id=e.dataTransfer.getData('text/plain');if(id)mudarStatus(id,c.dataset.drop)});
+
+// Arrastar cartões no celular: segurar ~0,35 s e arrastar até outra coluna
+(()=>{
+  let alvo=null,timer=null,ini=null,ativo=false,fantasma=null,col=null,rolar=0,ultimoX=0;
+  const cancelar=()=>{clearTimeout(timer);timer=null;alvo=null;ini=null};
+  const acabar=()=>{if(fantasma)fantasma.remove();fantasma=null;document.querySelectorAll('.col.over').forEach(c=>c.classList.remove('over'));
+    if(alvo)alvo.classList.remove('pegando');document.body.classList.remove('arrastando');cancelAnimationFrame(rolar);ativo=false;col=null;cancelar()};
+  document.addEventListener('touchstart',e=>{const k=e.target.closest('.kc');if(!k||e.target.closest('.next')||e.touches.length>1)return;
+    alvo=k;ini={x:e.touches[0].clientX,y:e.touches[0].clientY};
+    timer=setTimeout(()=>{if(!alvo)return;ativo=true;navigator.vibrate&&navigator.vibrate(12);
+      const r=alvo.getBoundingClientRect();fantasma=alvo.cloneNode(true);fantasma.classList.add('fantasma');
+      Object.assign(fantasma.style,{width:r.width+'px',left:r.left+'px',top:r.top+'px'});fantasma.dataset.dx=ini.x-r.left;fantasma.dataset.dy=ini.y-r.top;
+      document.body.appendChild(fantasma);alvo.classList.add('pegando');document.body.classList.add('arrastando');
+      const board=document.querySelector('.board');
+      const passo=()=>{if(!ativo)return;if(board){const b=board.getBoundingClientRect();if(ultimoX>b.right-40)board.scrollLeft+=9;else if(ultimoX<b.left+40)board.scrollLeft-=9}rolar=requestAnimationFrame(passo)};
+      rolar=requestAnimationFrame(passo)},350)},{passive:true});
+  document.addEventListener('touchmove',e=>{if(!alvo)return;const t=e.touches[0];
+    if(!ativo){if(Math.hypot(t.clientX-ini.x,t.clientY-ini.y)>8)cancelar();return}
+    e.preventDefault();ultimoX=t.clientX;
+    fantasma.style.left=(t.clientX-fantasma.dataset.dx)+'px';fantasma.style.top=(t.clientY-fantasma.dataset.dy)+'px';
+    fantasma.style.visibility='hidden';const sob=document.elementFromPoint(t.clientX,t.clientY);fantasma.style.visibility='';
+    const c=sob&&sob.closest('[data-drop]');if(c!==col){document.querySelectorAll('.col.over').forEach(x=>x.classList.remove('over'));col=c;if(c)c.classList.add('over')}},{passive:false});
+  document.addEventListener('touchend',e=>{if(!alvo)return;if(!ativo){cancelar();return}
+    e.preventDefault();const id=alvo.dataset.drag,st=col&&col.dataset.drop;acabar();ui.semClique=Date.now();if(id&&st)mudarStatus(id,st)});
+  document.addEventListener('touchcancel',()=>{if(ativo)acabar();else cancelar()});
+  document.addEventListener('contextmenu',e=>{if(e.target.closest('.kc'))e.preventDefault()});
+})();
 
 /* ================= Firebase ================= */
 const carregarScript=src=>new Promise((ok,err)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=err;document.head.appendChild(s)});
@@ -1095,10 +1308,11 @@ async function conectarFirebase(){
     ui.fotoGoogle=u.photoURL||'';
     ui.eu={...m,email,papel:dono?'admin':m.papel,foto:fotoPropria?m.foto:(u.photoURL||'')};
     ouvir();ui.pronto=true;render();
+    if(pushEstado()==='on')salvarToken().catch(()=>{});
   });
 }
 function ouvir(){
-  const cols=['clientes','demandas','anexos','membros'];if(isAdmin())cols.push('lancamentos');
+  const cols=['clientes','demandas','anexos','comentarios','membros'];if(isAdmin())cols.push('lancamentos');
   for(const c of cols)fb.subs.push(fb.fs.collection(c).onSnapshot(s=>{const v=s.docs.map(d=>({...d.data(),id:d.id}));if(c==='membros')D.membros=v;else E.hoax[c]=v;
     if(c==='membros'){const eu=D.membros.find(x=>x.id===ui.eu?.email);if(!eu&&ui.eu&&String(window.HOAX_DONO||'').toLowerCase()!==ui.eu.email){ui.semAcesso=ui.eu.email;pararDeOuvir()}else if(eu)ui.eu={...ui.eu,nome:eu.nome,papel:String(window.HOAX_DONO||'').toLowerCase()===ui.eu.email?'admin':eu.papel}}
     agendar()},e=>console.warn(c,e.code)));

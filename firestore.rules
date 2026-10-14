@@ -32,6 +32,7 @@ service cloud.firestore {
     match /demandas/{id}  { allow read, write: if membro(); }
     match /anexos/{id}    { allow read, write: if membro(); }
     match /arquivos/{id}  { allow read, write: if membro(); }
+    match /comentarios/{id} { allow read, write: if membro(); }
 
     match /lancamentos/{id} { allow read, write: if admin(); }
 
