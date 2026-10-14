@@ -40,7 +40,14 @@ a{color:var(--accent)}
 
 /* Topo */
 .top{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0;border:0;background:none;padding:0;cursor:pointer;color:inherit;text-align:left}
+.brand:active{transform:scale(.97)}
+.eu{border:0;background:none;padding:0;border-radius:50%;cursor:pointer;flex:none}
+.eu .av{width:34px;height:34px;box-shadow:0 0 0 2px var(--glass-brd)}
+.eu:hover .av{box-shadow:0 0 0 2px var(--accent)}
+.perfil-topo{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;margin:4px 0 18px}
+.perfil-topo .av{width:112px;height:112px;font-size:38px;box-shadow:0 0 0 3px var(--glass-brd),0 12px 30px rgba(0,0,0,.35)}
+.perfil-topo .acts{justify-content:center;margin-top:4px}
 .brand img{height:22px}
 .brand b{font-stretch:125%;font-weight:900;font-size:13px;letter-spacing:.14em;color:var(--muted)}
 .av{width:32px;height:32px;border-radius:50%;background:var(--surface2);display:grid;place-items:center;font-size:12px;font-weight:700;overflow:hidden;flex:none;border:1px solid var(--line)}
@@ -677,9 +684,9 @@ function render(){
   document.documentElement.dataset.esp=ui.esp;
   const foco=document.activeElement,fid=foco&&foco.id,pos=fid&&foco.selectionStart;
   const scroll=[...document.querySelectorAll('.board')].map(b=>b.scrollLeft);const navX=document.querySelector('nav.tabs')?.scrollLeft||0;
-  app.innerHTML=`<header class="top"><div class="brand"><img src="logo.svg" alt="hoax"><b>BOARD</b></div>
+  app.innerHTML=`<header class="top"><button class="brand" data-a="tab" data-t="inicio" aria-label="Ir para o início"><img src="logo.svg" alt="hoax"><b>BOARD</b></button>
   <div class="seg esp">${[['hoax','Hoax'],['pessoal','Pessoal']].map(([k,n])=>`<button class="${ui.esp===k?'on':''}" data-a="esp" data-v="${k}">${n}</button>`).join('')}</div>
-  <nav class="tabs">${tabs.map(([k,n])=>`<button class="${ui.tab===k?'on':''}" data-a="tab" data-t="${k}">${I[k]}<span>${n}</span></button>`).join('')}</nav>${ui.eu?avatar(ui.eu.email):''}</header>
+  <nav class="tabs">${tabs.map(([k,n])=>`<button class="${ui.tab===k?'on':''}" data-a="tab" data-t="${k}">${I[k]}<span>${n}</span></button>`).join('')}</nav>${ui.eu?`<button class="eu" data-a="perfil" aria-label="Meu perfil">${avatar(ui.eu.email)}</button>`:''}</header>
   ${pessoal()?`<div class="banner pes">Espaço pessoal: seus freelas. Só você vê o que está aqui.</div>`:''}
   ${ui.modo==='local'?`<div class="banner">Modo teste: os dados ficam só neste aparelho até o Firebase ser configurado.</div>`:''}
   <main>${tela}</main>
@@ -864,6 +871,36 @@ function formLista(k){
   <div class="acts"><button class="btn pri">Salvar</button><button type="button" class="btn ghost" data-a="fechar">Cancelar</button></div></form>`;
 }
 
+// ----- Perfil -----
+function htmlPerfil(){
+  const eu=membro(ui.eu.email)||ui.eu;const foto=eu.foto||'';
+  const comigo=E.hoax.demandas.filter(d=>aberta(d)&&(d.resp||[]).includes(ui.eu.email)).length;
+  const pes=E.pessoal.demandas.filter(aberta).length;
+  return `${cab('Perfil')}
+  <div class="perfil-topo">${avatar(ui.eu.email)}
+    <div class="acts"><label class="btn sm pri">Trocar foto<input type="file" accept="image/*" hidden data-file="foto"></label>
+    ${ui.fotoGoogle&&foto!==ui.fotoGoogle?`<button class="btn sm" data-a="fotoGoogle">Usar foto do Google</button>`:''}
+    ${foto?`<button class="btn sm ghost" data-a="semFoto">Remover foto</button>`:''}</div></div>
+  <form data-form="perfil">${fld('Nome que aparece no app',`<input name="nome" required value="${esc(eu.nome||'')}">`)}
+    <div class="acts" style="margin-top:0"><button class="btn pri">Salvar nome</button></div></form>
+  <dl class="kv" style="margin-top:18px"><dt>E-mail</dt><dd>${esc(ui.eu.email)}</dd><dt>Acesso</dt><dd>${ui.eu.papel==='admin'?'Admin':'Equipe'}</dd>
+    <dt>Comigo</dt><dd>${comigo} ${comigo===1?'demanda aberta':'demandas abertas'} na Hoax</dd><dt>Freelas</dt><dd>${pes} ${pes===1?'demanda aberta':'demandas abertas'} no Pessoal</dd></dl>
+  <div class="acts"><button class="btn" data-a="tema">Tema ${document.documentElement.dataset.theme==='light'?'claro':'escuro'}</button><span class="sp"></span>${ui.modo==='nuvem'?`<button class="btn danger ghost" data-a="sair">Sair</button>`:''}</div>`;
+}
+// Atualiza só nome e foto da própria ficha (as regras deixam cada pessoa mexer só nisso)
+async function salvarPerfil(mud){
+  const e=ui.eu.email;const i=D.membros.findIndex(m=>(m.email||m.id)===e);
+  if(i>=0)D.membros[i]={...D.membros[i],...mud};
+  ui.eu={...ui.eu,...mud};
+  if(ui.modo==='nuvem'){try{await fb.fs.collection('membros').doc(e).update(mud)}catch(err){toast('Não foi possível salvar ('+(err.code||err.message)+').');return}}
+  else salvarLocal();
+  agendar();if(ui.sheet?.tipo==='perfil')$('#sheet .sheet').innerHTML=htmlPerfil();
+}
+// Recorta a foto em quadrado, no centro
+function fotoQuadrada(file,lado){return new Promise((ok,err)=>{const img=new Image();img.onload=()=>{const m=Math.min(img.naturalWidth,img.naturalHeight);
+  const c=document.createElement('canvas');c.width=c.height=lado;const g=c.getContext('2d');
+  g.drawImage(img,(img.naturalWidth-m)/2,(img.naturalHeight-m)/2,m,m,0,0,lado,lado);URL.revokeObjectURL(img.src);ok(c.toDataURL('image/jpeg',.85))};img.onerror=err;img.src=URL.createObjectURL(file)})}
+
 /* ================= Imagens ================= */
 function comprimir(file,max,q){return new Promise((ok,err)=>{const img=new Image();img.onload=()=>{let w=img.naturalWidth,h=img.naturalHeight;const k=Math.min(1,max/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);
   const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(img,0,0,w,h);URL.revokeObjectURL(img.src);ok(c.toDataURL('image/jpeg',q))};img.onerror=err;img.src=URL.createObjectURL(file)})}
@@ -968,11 +1005,14 @@ const A={
   editMembro:x=>abrirFolha(formMembro(membro(x.id))),
   delMembro:async x=>{if(!confirm('Remover esta pessoa da equipe? Ela perde o acesso ao app.'))return;await apagar('membros',x.id);fecharFolha()},
   editLista:x=>abrirFolha(formLista(x.k)),
-  tema:()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==='light'?'dark':'light';ls.set('hb-tema',r.dataset.theme);render()},
+  tema:()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==='light'?'dark':'light';ls.set('hb-tema',r.dataset.theme);render();if(ui.sheet?.tipo==='perfil')$('#sheet .sheet').innerHTML=htmlPerfil()},
   backup:()=>{const j={exportado:new Date().toISOString()};j.hoax=E.hoax;j.membros=D.membros;j.listas=D.listas;j.minhaParte=D.minhas;j.pessoal=E.pessoal;
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(j,null,1)],{type:'application/json'}));a.download=`hoax-board-${hoje()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)},
   entrar:()=>{ui.entrouAgora=true;entrarGoogle()},
   entrarApp:()=>sairIntro(),
+  perfil:()=>abrirFolha(htmlPerfil(),{tipo:'perfil'}),
+  fotoGoogle:()=>salvarPerfil({foto:ui.fotoGoogle}),
+  semFoto:()=>salvarPerfil({foto:''}),
   sair:()=>{if(fb.auth)fb.auth.signOut()}
 };
 
@@ -1002,6 +1042,7 @@ document.addEventListener('change',async e=>{
   if(t.dataset.ch==='statusDem'){await mudarStatus(t.dataset.id,t.value);return}
   if(t.dataset.ch==='chk'){const d=demanda(t.dataset.id);const c=(d.checklist||[]).map((x,i)=>i===+t.dataset.i?{...x,ok:t.checked}:x);await salvar('demandas',{...d,checklist:c});return}
   if(t.dataset.file==='img'){const fs=[...t.files];t.value='';toast('Guardando '+fs.length+(fs.length>1?' imagens...':' imagem...'));await addImagens(fs,t.dataset.id);return}
+  if(t.dataset.file==='foto'){const f=t.files[0];t.value='';if(!f)return;try{await salvarPerfil({foto:await fotoQuadrada(f,320)});toast('Foto atualizada.')}catch(err){toast('Não foi possível usar essa imagem.')}return}
   if(t.dataset.file==='csv'){const fs=[...t.files];t.value='';toast('Importando...');await importarCSVs(fs);return}
 });
 document.addEventListener('submit',async e=>{
@@ -1016,6 +1057,7 @@ document.addEventListener('submit',async e=>{
     else if(k==='addChk'){const t=new FormData(f).get('t').trim();if(t){const d=demanda(f.dataset.id);await salvar('demandas',{...d,checklist:[...(d.checklist||[]),{t,ok:false}]})}}
     else if(k==='membro'){const fd=new FormData(f);const email=String(fd.get('email')).trim().toLowerCase();const antigo=membro(email);
       await salvar('membros',{...(antigo||{}),id:email,email,nome:fd.get('nome').trim()||email.split('@')[0],papel:fd.get('papel')});fecharFolha();toast('Pronto. '+email+' já pode entrar.')}
+    else if(k==='perfil'){const nome=String(new FormData(f).get('nome')).trim();if(nome){await salvarPerfil({nome});toast('Nome salvo.')}}
     else if(k==='lista'){const itens=String(new FormData(f).get('itens')).split('\n').map(s=>s.trim()).filter(Boolean);await salvarListas({...D.listas,[f.dataset.k]:itens});fecharFolha()}
   }catch(err){if(err.message!=='partes')toast('Algo deu errado: '+err.message)}finally{if(btn)btn.disabled=false}
 });
@@ -1048,8 +1090,10 @@ async function conectarFirebase(){
     try{const s=await ref.get();if(s.exists)m=s.data()}catch(e){}
     if(!m&&dono){m={email,nome:u.displayName||email,papel:'admin'};try{await ref.set(m)}catch(e){toast('Confira o e-mail da dona no firestore.rules.')}}
     if(!m){ui.semAcesso=email;ui.pronto=true;render();return}
-    ref.set({uid:u.uid,foto:u.photoURL||''},{merge:true}).catch(()=>{});
-    ui.eu={...m,email,papel:dono?'admin':m.papel,foto:u.photoURL||''};
+    const fotoPropria=m.foto&&!/^https?:/.test(m.foto);
+    ref.set(fotoPropria?{uid:u.uid}:{uid:u.uid,foto:u.photoURL||''},{merge:true}).catch(()=>{});
+    ui.fotoGoogle=u.photoURL||'';
+    ui.eu={...m,email,papel:dono?'admin':m.papel,foto:fotoPropria?m.foto:(u.photoURL||'')};
     ouvir();ui.pronto=true;render();
   });
 }
